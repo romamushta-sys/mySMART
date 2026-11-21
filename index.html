@@ -83,6 +83,7 @@ svg.ch{max-width:560px}
 svg.sm{max-width:380px}
 svg.ht{height:auto;max-width:230px}
 [hidden]{display:none!important}
+.card[data-cat=books]{--cc:#2f8a8a}.card[data-cat=buy]{--cc:#d4577a}
 nav{display:flex;gap:6px;overflow-x:auto;margin:12px 0 4px;align-items:center;padding-bottom:4px}
 nav button{flex:none}
 #mn{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
@@ -91,7 +92,7 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 </head>
 <body><main>
 <header><h1>Мои цели<small>SMART</small></h1><span><span class="sync" id="sync">Подключение…</span> <button class="p" id="add">+ Новая цель</button></span></header>
-<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button></nav>
+<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="tkb">Задачи</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button></nav>
 <div id="mn" hidden><button id="xl">⬇ Excel</button><button id="bk">Резервная копия</button><button id="rs">Восстановить</button><button id="lg">Журнал записей</button><button id="lo">Выйти</button><input type="file" id="rsf" accept=".json,application/json" hidden></div>
 <div class="card" id="auth" hidden>
 <b style="font:600 19px 'Literata',Georgia,serif">Вход</b>
@@ -102,10 +103,10 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 <div class="tag" id="authm" style="margin-top:8px;color:var(--bad)"></div></div>
 <div class="card" id="qkc" hidden><div class="ci" style="margin:0"><input id="qk" style="flex:1;width:auto;min-width:200px" placeholder="Быстрый ввод: «съел 450 ккал», «был в зале»"><button class="p" id="qkb">Записать</button></div><div class="tag" id="qkm" style="margin-top:6px"></div></div>
 <form id="form" class="card" hidden onsubmit="return false">
-<label>Шаблон (необязательно)<select id="f_tpl"><option value="">— без шаблона —</option><option value="money">Накопить сумму</option><option value="weight">Снизить вес</option><option value="habit">Привычка N раз в неделю</option><option value="study">Освоить навык или язык</option><option value="month">Откладывать каждый месяц</option></select></label>
+<label>Шаблон (необязательно)<select id="f_tpl"><option value="">— без шаблона —</option><option value="weight">Снизить вес</option><option value="money">Накопить на цель (копилка)</option><option value="cushion">Финансовая подушка</option><option value="month">Откладывать каждый месяц</option><option value="books">Прочитать N книг</option><option value="buy">Купить товары из списка</option><option value="habit">Привычка N раз в неделю</option><option value="study">Освоить навык или язык</option></select></label>
 <label>Название цели<input id="f_title" placeholder="Например: накопить на отпуск"></label>
 <div class="row">
-<label>Категория<select id="f_cat"><option value="money">💰 Деньги</option><option value="weight">⚖️ Вес и здоровье</option><option value="study">📚 Учёба</option><option value="other">🎯 Другое</option></select></label>
+<label>Категория<select id="f_cat"><option value="money">💰 Деньги</option><option value="weight">⚖️ Вес и здоровье</option><option value="study">📚 Учёба</option><option value="books">📖 Книги</option><option value="buy">🛒 Покупки</option><option value="other">🎯 Другое</option></select></label>
 <label><b>M</b> Единица измерения<input id="f_unit" placeholder="₽, кг, часов…"></label>
 <label><b>T</b> Срок<input id="f_dl" type="date"></label>
 </div>
@@ -114,7 +115,7 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 <label><b>M</b> Цель<input id="f_target" type="number" step="any"></label>
 <label>Повтор<select id="f_rep"><option value="">Нет</option><option value="week">Каждую неделю</option><option value="month">Каждый месяц</option></select></label>
 </div>
-<div class="row"><label>Ставка, % годовых (для накоплений)<input id="f_rate" type="number" step="any"></label><label>Взнос в месяц (для накоплений)<input id="f_pmt" type="number" step="any"></label><span></span></div>
+<div class="row"><label>Ставка, % годовых (для накоплений)<input id="f_rate" type="number" step="any"></label><label>Взнос в месяц (для накоплений)<input id="f_pmt" type="number" step="any"></label><label>Прогресс считается по<select id="f_mode"><option value="value">значению (вес, деньги)</option><option value="items">выполненным пунктам (книги, покупки)</option></select></label></div>
 <label><b>S</b> Конкретно: что именно и как вы это сделаете<textarea id="f_s" rows="2"></textarea></label>
 <label><b>A</b> Достижимо: почему это реально, какие ресурсы есть<textarea id="f_a" rows="2"></textarea></label>
 <label><b>R</b> Значимо: зачем вам эта цель<textarea id="f_r" rows="2"></textarea></label>
@@ -129,14 +130,14 @@ window.claude={use:async n=>n==='downloads'?{save:async({filename,data})=>{const
 </script>
 <script>
 const $=s=>document.querySelector(s);
-const CATS={money:'💰 Деньги',weight:'⚖️ Вес и здоровье',study:'📚 Учёба',other:'🎯 Другое'};
+const CATS={money:'💰 Деньги',weight:'⚖️ Вес и здоровье',study:'📚 Учёба',books:'📖 Книги',buy:'🛒 Покупки',other:'🎯 Другое'};
 let goals=[],store=null,sample=null,editId=null,aiText={},pendingDel=null;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=n=>Number(n.toFixed(1)).toLocaleString('ru-RU');
 const today=()=>new Date().toISOString().slice(0,10);
 const setSync=t=>$('#sync').textContent=t;
 
-function entries(g){return (g.entries||[]).slice().sort((a,b)=>a.d.localeCompare(b.d))}
+function entries(g){if(g.mode==='items')return (g.items||[]).filter(i=>i.done&&i.at).map(i=>i.at).sort().map((d,k)=>({d,v:k+1}));return (g.entries||[]).slice().sort((a,b)=>a.d.localeCompare(b.d))}
 function cur(g){const e=entries(g);return e.length?e[e.length-1].v:g.start}
 function pct(g){const t=g.target-g.start;if(!t)return 100;return Math.max(0,Math.min(100,(cur(g)-g.start)/t*100))}
 function daysLeft(g){return Math.ceil((new Date(g.deadline+'T23:59:59')-Date.now())/864e5)}
@@ -217,24 +218,25 @@ function overview(){
   return `<div class="card ov"><svg viewBox="0 0 100 100" style="width:110px;height:110px"><circle r="40" cx="50" cy="50" fill="none" stroke="var(--ln)" stroke-width="12"/>${seg}<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="700" fill="var(--tx)">${avg}%</text></svg><div class="lg"><b>Средний прогресс · целей: ${n}</b>${Object.keys(col).filter(k=>c[k]).map(k=>`<div><i class="dot" style="background:var(${col[k]})"></i>${nm[k]}: ${c[k]}</div>`).join('')}</div></div>`;
 }
 function render(){
-  const L=$('#list');$('#qkc').hidden=!sample||!goals.length;$('#allb').className=mode==='all'?'p':'';$('#tdb').className=mode==='today'?'p':'';$('#wkb').className=mode==='week'?'p':'';$('#arb').className=mode==='arch'?'p':'';const pn=pending();$('#tdb').textContent='Сегодня'+(pn?' · '+pn:'');
+  const L=$('#list');$('#qkc').hidden=!sample||!goals.length;$('#allb').className=mode==='all'?'p':'';$('#tdb').className=mode==='today'?'p':'';$('#wkb').className=mode==='week'?'p':'';$('#arb').className=mode==='arch'?'p':'';const pn=pending();$('#tdb').textContent='Сегодня'+(pn?' · '+pn:'');$('#tkb').className=mode==='tasks'?'p':'';const tn=tasksDue().length;$('#tkb').textContent='Задачи'+(tn?' · '+tn:'');
   if(!goals.length){L.innerHTML='<div class="empty">Целей пока нет. Нажмите «Новая цель» и опишите её по методу SMART.</div>';return}
   const order={warn:0,bad:0,ok:1,done:2};
   const gs=goals.filter(g=>mode==='arch'?g.archived:!g.archived).sort((a,b)=>order[status(a).k]-order[status(b).k]);
-  if(mode==='today'){L.innerHTML=todayHTML();return}
+  if(mode==='today'){L.innerHTML=remBanner()+todayHTML();return}
+  if(mode==='tasks'){L.innerHTML=tasksHTML();return}
   if(mode==='log'){L.innerHTML=logHTML();return}
   if(mode==='week'){L.innerHTML=weekHTML();return}
   if(mode==='all'&&!gs.length){L.innerHTML="<div class='empty'>Все цели в архиве. Создайте новую или откройте «Архив».</div>";return}
   if(mode==='arch'&&!gs.length){L.innerHTML="<div class='empty'>В архиве пока пусто.</div>";return}
-  L.innerHTML=(mode==='arch'?"<div class='sec'>Архив · завершённые и отложенные цели</div>":(goals.filter(g=>!g.archived).length>=3?overview():''))+gs.map(g=>{const s=status(g),p=pct(g);return `<div class="card" data-cat="${esc(g.cat)}" data-id="${esc(g.id)}">
+  L.innerHTML=(mode==='arch'?'':remBanner())+(mode==='arch'?"<div class='sec'>Архив · завершённые и отложенные цели</div>":(goals.filter(g=>!g.archived).length>=3?overview():''))+gs.map(g=>{const s=status(g),p=pct(g);return `<div class="card" data-cat="${esc(g.cat)}" data-id="${esc(g.id)}">
 <div class="bd"><div><b>${esc(g.title)}</b><div class="tag">${CATS[g.cat]||''} · до ${esc(g.deadline)}${rep(g)}${stl(g)}</div></div><div class="st ${s.k}">${s.t}</div></div>
 <div class="hero"><div class="big"><span>${fmt(cur(g))}</span><small>${esc(g.unit)} · цель ${fmt(g.target)}</small></div>${ring(p,s.k)}</div>
 <div class="tag">старт ${fmt(g.start)} ${esc(g.unit)}</div>
 ${chart(g)}
 ${g.specific||g.relevant?`<div class="tag" style="margin-top:6px">${g.specific?'S: '+esc(g.specific):''}${g.relevant?' · R: '+esc(g.relevant):''}</div>`:''}
-${(g.subs||[]).length?`<details class="more" data-gid="${esc(g.id)}"${openD.has(g.id)?' open':''}><summary>Подкатегории и динамика (${g.subs.length})</summary>${subHTML(g)}${combo(g)}</details>`:''}<ul class="tips">${tipsHTML(g)}</ul>
+${(g.subs||[]).length?`<details class="more" data-gid="${esc(g.id)}"${openD.has(g.id)?' open':''}><summary>Подкатегории и динамика (${g.subs.length})</summary>${subHTML(g)}${combo(g)}</details>`:''}${itemsHTML(g)}<ul class="tips">${tipsHTML(g)}</ul>
 ${aiText[g.id]?`<div class="ai">${esc(aiText[g.id])}</div>`:''}
-<div class="ci"><input type="number" step="any" placeholder="Текущее значение" data-v><input type="date" value="${today()}" data-d><button class="p" data-act="ci">Отметить</button>
+<div class="ci">${g.mode==='items'?'':`<input type="number" step="any" placeholder="Текущее значение" data-v><input type="date" value="${today()}" data-d><button class="p" data-act="ci">Отметить</button>`}
 <button class="l" data-act="${g.archived?'unarch':'arch'}">${g.archived?'Вернуть':'В архив'}</button><button class="l" data-act="edit">Изменить</button><button class="l" data-act="del">${pendingDel===g.id?'Точно удалить?':'Удалить'}</button></div></div>`}).join('');
 }
 $('#add').onclick=()=>openForm();
@@ -242,7 +244,7 @@ $('#cancel').onclick=()=>{$('#form').hidden=true};
 function openForm(g){
   editId=g?g.id:null;$('#form').hidden=false;$('#ferr').textContent='';
   const v=(k,x)=>$('#f_'+k).value=x??'';
-  v('title',g?.title);v('cat',g?.cat||'money');v('unit',g?.unit);v('dl',g?.deadline);v('start',g?.start);v('target',g?.target);$('#f_tpl').value='';$('#f_tpl').parentElement.hidden=!!g;fsubs=(g?.subs||[]).map(s=>({...s}));drawSubs();v('rep',g?.repeat);v('rate',g?.rate);v('pmt',g?.pmt);v('s',g?.specific);v('a',g?.achievable);v('r',g?.relevant);
+  v('title',g?.title);v('cat',g?.cat||'money');v('unit',g?.unit);v('dl',g?.deadline);v('start',g?.start);v('target',g?.target);$('#f_tpl').value='';$('#f_tpl').parentElement.hidden=!!g;fsubs=(g?.subs||[]).map(s=>({...s}));drawSubs();v('rep',g?.repeat);v('rate',g?.rate);v('pmt',g?.pmt);v('mode',g?.mode||'value');tplItems=[];v('s',g?.specific);v('a',g?.achievable);v('r',g?.relevant);
   $('#form').scrollIntoView({behavior:'smooth'});
 }
 $('#save').onclick=async()=>{
@@ -250,7 +252,7 @@ $('#save').onclick=async()=>{
   const start=parseFloat(val('start')),target=parseFloat(val('target'));
   if(!val('title')||!val('unit')||!val('dl')||isNaN(start)||isNaN(target)){$('#ferr').textContent='Заполните название, единицу, значения «сейчас» и «цель» и срок.';return}
   if(start===target){$('#ferr').textContent='«Сейчас» и «Цель» не должны совпадать.';return}
-  const g={...g0,id:g0.id||'g'+Date.now().toString(36),title:val('title'),cat:val('cat'),unit:val('unit'),deadline:val('dl'),start,target,repeat:val('rep'),rate:parseFloat(val('rate'))||0,pmt:parseFloat(val('pmt'))||0,subs:fsubs.filter(s=>(s.name||'').trim()).map(s=>({...s,name:s.name.trim()})),logs:g0.logs||[],specific:val('s'),achievable:val('a'),relevant:val('r'),created:g0.created||new Date().toISOString(),entries:g0.entries||[]};
+  const g={...g0,id:g0.id||'g'+Date.now().toString(36),title:val('title'),cat:val('cat'),unit:val('unit'),deadline:val('dl'),start,target,repeat:val('rep'),mode:val('mode')||'value',items:g0.items||tplItems.map(t=>({...t})),rate:parseFloat(val('rate'))||0,pmt:parseFloat(val('pmt'))||0,subs:fsubs.filter(s=>(s.name||'').trim()).map(s=>({...s,name:s.name.trim()})),logs:g0.logs||[],specific:val('s'),achievable:val('a'),relevant:val('r'),created:g0.created||new Date().toISOString(),entries:g0.entries||[]};
   try{await store.save(g);$('#form').hidden=true}catch(e){$('#ferr').textContent='Не удалось сохранить, попробуйте ещё раз.'}
 };
 $('#list').onclick=async ev=>{
@@ -259,6 +261,8 @@ $('#list').onclick=async ev=>{
   if(a!=='del'&&pendingDel){pendingDel=null}
   if(a==='edit')openForm(g);
   else if(a==='arch'||a==='unarch')await store.save({...g,archived:a==='arch'?iso(new Date()):null});
+  else if(a.startsWith('tk'))await taskAct(a,b);
+  else if(a.startsWith('it'))await itemAct(a,b,g);
   else if(a==='delrec')await delRec(b,g);
   else if(a==='wkai')await wkAI(b);
   else if(a==='sadd'||a==='sclr'||a==='stog')await subAct(a,b,g);
@@ -439,7 +443,7 @@ function todayHTML(){
   const act=goals.filter(g=>!g.archived),nd=iso(new Date());
   const rows=act.map(g=>`<div class='card' data-cat='${esc(g.cat)}' data-id='${esc(g.id)}'><div class='bd'><b>${esc(g.title)}</b><span class='tag'>сейчас ${fmt(cur(g))} ${esc(g.unit)} · цель ${fmt(g.target)}</span></div>${(g.subs||[]).map(s=>{
     const t=dayTotal(g,s.id,nd),chk=s.kind==='chk';
-    return `<div class='sub' data-s='${esc(s.id)}'><div class='bd'><b style="font:600 15px Onest,sans-serif">${esc(s.name)}</b><span class='tag'>${chk?(t?'сегодня отмечено ✓':'сегодня не отмечено'):`сегодня: ${fmt(t)} ${esc(s.unit||'')}${s.norm?` (${s.kind==='max'?'≤':'≥'} ${fmt(s.norm)})`:''}`}</span></div><div class='ci'><input type='hidden' data-sd value='${nd}'>${chk?`<button class='p' data-act='stog'>${t?'Снять отметку':'Отметить сегодня'}</button>`:`<input type='number' step='any' data-sv placeholder='+ ${esc(s.unit||'значение')}'><button class='p' data-act='sadd'>Добавить</button><button class='l' data-act='sclr'>Сбросить</button>`}</div></div>`}).join('')}<div class='ci'><input type='number' step='any' placeholder='Текущее значение' data-v><input type='date' value='${today()}' data-d><button class='p' data-act='ci'>Отметить</button></div></div>`).join('');
+    return `<div class='sub' data-s='${esc(s.id)}'><div class='bd'><b style="font:600 15px Onest,sans-serif">${esc(s.name)}</b><span class='tag'>${chk?(t?'сегодня отмечено ✓':'сегодня не отмечено'):`сегодня: ${fmt(t)} ${esc(s.unit||'')}${s.norm?` (${s.kind==='max'?'≤':'≥'} ${fmt(s.norm)})`:''}`}</span></div><div class='ci'><input type='hidden' data-sd value='${nd}'>${chk?`<button class='p' data-act='stog'>${t?'Снять отметку':'Отметить сегодня'}</button>`:`<input type='number' step='any' data-sv placeholder='+ ${esc(s.unit||'значение')}'><button class='p' data-act='sadd'>Добавить</button><button class='l' data-act='sclr'>Сбросить</button>`}</div></div>`}).join('')}${g.mode==='items'?`<div class='tag' style='margin-top:8px'>Пункты цели отмечайте на вкладке «Цели»</div>`:`<div class='ci'><input type='number' step='any' placeholder='Текущее значение' data-v><input type='date' value='${today()}' data-d><button class='p' data-act='ci'>Отметить</button></div>`}</div>`).join('');
   return `<div class='sec'>Сегодня · ${new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}</div>${rows}`;
 }
 $('#qkb').onclick=async()=>{
@@ -476,7 +480,7 @@ const openD=new Set();
 $('#list').addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.gid)d.open?openD.add(d.dataset.gid):openD.delete(d.dataset.gid)},true);
 function pending(){const nd=iso(new Date());let n=0;goals.filter(g=>!g.archived).forEach(g=>(g.subs||[]).forEach(s=>{if(!dayTotal(g,s.id,nd))n++}));return n}
 function tipsHTML(g){
-  const t=tips(g),a=t.slice(0,3).map(x=>`<li>${x}</li>`).join('');
+  const t=tips(g);{const nx=(g.items||[]).find(i=>!i.done);if(nx)t.unshift('Следующий шаг: '+esc(nx.t)+'.')}const a=t.slice(0,3).map(x=>`<li>${x}</li>`).join('');
   return a+(t.length>3?`<li><details class='more'><summary>Ещё советы (${t.length-3})</summary>${t.slice(3).map(x=>`<div style='margin-top:6px'>${x}</div>`).join('')}</details></li>`:'');
 }
 function msMarks(g,X,Y,t0,t1){
@@ -496,14 +500,14 @@ function logHTML(){
 }
 $('#bk').onclick=async()=>{
   $('#mn').hidden=true;
-  try{const dl=await claude.use('downloads');if(!dl)throw 0;await dl.save({filename:'smart-goals-backup.json',data:JSON.stringify(goals)})}
+  try{const dl=await claude.use('downloads');if(!dl)throw 0;await dl.save({filename:'smart-goals-backup.json',data:JSON.stringify([...goals,...tasks])})}
   catch(e){if(!(e&&e.code==='declined'))setSync('Резервная копия недоступна')}
 };
 $('#rs').onclick=()=>$('#rsf').click();
 $('#rsf').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;$('#mn').hidden=true;
   try{const a=JSON.parse(await f.text());if(!Array.isArray(a))throw 0;let n=0;
-    for(const g of a){if(g&&g.id&&g.title&&g.created&&g.deadline){await store.save(g);n++}}
+    for(const g of a){if(g&&g.type==='task'&&g.id){await saveT(g);n++}else if(g&&g.id&&g.title&&g.created&&g.deadline){await store.save(g);n++}}
     setSync('Восстановлено целей: '+n);
   }catch(x){setSync('Не удалось прочитать файл')}
 };
@@ -526,7 +530,7 @@ function showAuth(msg){$('#auth').hidden=false;$('#list').hidden=true;$('#authm'
 async function loadAll(){
   const {data,error}=await sb.from('goals').select('data');
   if(error){setSync('Ошибка загрузки: '+error.message);return}
-  goals=(data||[]).map(r=>r.data);setSync('Синхронизировано ✓');render();
+  const all=(data||[]).map(r=>r.data);goals=all.filter(x=>x&&x.type!=='task');tasks=all.filter(x=>x&&x.type==='task');setSync('Синхронизировано ✓');render();
   goals.slice().forEach(g=>{const r=rollover(g);if(r)store.save(r)});
 }
 async function startSynced(session){
@@ -574,17 +578,132 @@ window.addEventListener('unhandledrejection',e=>{if(!$('#auth').hidden)authErr($
 $('#lo').onclick=()=>{$('#mn').hidden=true;if(sb)sb.auth.signOut()};
 function startLocal(note){
   try{goals=JSON.parse(localStorage.getItem('smart_goals')||'[]')}catch(e){}
+  try{tasks=JSON.parse(localStorage.getItem('smart_tasks')||'[]')}catch(e){}
   const persist=()=>{try{localStorage.setItem('smart_goals',JSON.stringify(goals))}catch(e){}};
   store={save:async g=>{const i=goals.findIndex(x=>x.id===g.id);i<0?goals.push(g):goals[i]=g;persist();render()},del:async id=>{goals=goals.filter(x=>x.id!==id);persist();render()}};
   setSync(note);render();goals.slice().forEach(g=>{const r=rollover(g);if(r)store.save(r)});
 }
+let tasks=[],tplItems=[];
+const DEF_LISTS=['Дела','Покупки'];
+const TS=()=>{try{return JSON.parse(localStorage.getItem('smart_set')||'{}')}catch(e){return{}}};
+const setTS=o=>{try{localStorage.setItem('smart_set',JSON.stringify({...TS(),...o}))}catch(e){}};
+$('#tkb').onclick=()=>setMode('tasks');
+const TPL2={
+  weight:{t:'Снизить вес',cat:'weight',u:'кг',days:90,s:'Контролировать питание и ходить на тренировки по расписанию',subs:[{name:'Контроль питания',kind:'max',norm:null,unit:'ккал'},{name:'Тренировки',kind:'chk',norm:3,unit:'раз'}],items:['Купить весы','Выбрать зал или программу тренировок','Составить рацион на неделю','Сделать стартовые замеры']},
+  money:{t:'Накопить на …',cat:'money',u:'₽',start:0,days:180,s:'Откладывать фиксированную сумму в день дохода',items:['Определить сумму и срок','Открыть отдельный счёт или вклад','Настроить автоперевод в день дохода']},
+  cushion:{t:'Финансовая подушка',cat:'money',u:'₽',start:0,days:365,s:'Накопить запас на несколько месяцев расходов',items:['Посчитать месячные расходы','Выбрать, где хранить подушку','Настроить автоперевод']},
+  month:{t:'Откладывать каждый месяц',cat:'money',u:'₽',start:0,days:30,rep:'month',s:'Переводить фиксированную сумму в день дохода',items:[]},
+  books:{t:'Прочитать книги',cat:'books',u:'книг',start:0,target:12,days:365,mode:'items',s:'Читать ежедневно в заранее выбранное время',items:[]},
+  buy:{t:'Купить из списка',cat:'buy',u:'покупок',start:0,target:5,days:60,mode:'items',s:'Сравнить цены и купить по списку',items:[]},
+  habit:{t:'Привычка',cat:'other',u:'раз',start:0,target:3,days:7,rep:'week',s:'Делать выбранное действие в заранее назначенные дни',items:[]},
+  study:{t:'Освоить …',cat:'study',u:'часов',start:0,target:60,days:90,s:'Заниматься по расписанию несколько раз в неделю',items:[]}
+};
+$('#f_tpl').onchange=e=>{
+  const t=TPL2[e.target.value];if(!t)return;const v=(k,x)=>$('#f_'+k).value=x??'';
+  v('title',t.t);v('cat',t.cat);v('unit',t.u);v('start',t.start);v('target',t.target);v('dl',iso(new Date(Date.now()+t.days*864e5)));v('rep',t.rep||'');v('s',t.s);v('mode',t.mode||'value');
+  fsubs=(t.subs||[]).map((s,i)=>({...s,id:'s'+Date.now().toString(36)+i}));drawSubs();
+  tplItems=(t.items||[]).map((x,i)=>({id:'i'+Date.now().toString(36)+i,t:x,p:0,done:false}));
+};
+function itemsHTML(g){
+  const it=g.items||[],dn=it.filter(i=>i.done).length,sum=it.reduce((a,i)=>a+(i.p||0),0),paid=it.filter(i=>i.done).reduce((a,i)=>a+(i.p||0),0);
+  const rows=it.map(i=>`<div class='row2' style='align-items:center;padding:6px 0'><label style='display:flex;gap:8px;align-items:center;margin:0;color:var(--tx);flex:1'><input type='checkbox' style='width:auto;margin:0' ${i.done?'checked':''} data-act='ittog' data-i='${esc(i.id)}'><span style='${i.done?'text-decoration:line-through;color:var(--mut)':''}'>${esc(i.t)}${i.p?' · '+fmt(i.p)+' ₽':''}</span></label><button class='l' data-act='itdel' data-i='${esc(i.id)}'>✕</button></div>`).join('');
+  const open=g.mode==='items'||openD.has('i'+g.id);
+  return `<details class='more' data-gid='i${esc(g.id)}'${open?' open':''}><summary>Шаги и пункты (${dn}/${it.length})${sum?` · ${fmt(paid)} из ${fmt(sum)} ₽`:''}</summary>${rows||"<div class='tag' style='margin-top:8px'>Добавьте шаги или пункты списка: книги, товары, этапы плана.</div>"}<div class='ci'><input data-it placeholder='Новый пункт' style='flex:1;width:auto;min-width:140px'><input data-ip type='number' step='any' placeholder='Цена, ₽' style='width:100px'><button class='p' data-act='itadd'>Добавить</button></div></details>`;
+}
+async function itemAct(a,b,g){
+  let it=(g.items||[]).slice();
+  if(a==='itadd'){const c=b.closest('.card'),t=c.querySelector('[data-it]').value.trim();if(!t)return;const p=parseFloat(c.querySelector('[data-ip]').value);it.push({id:'i'+Date.now().toString(36)+it.length,t,p:isNaN(p)?0:p,done:false})}
+  else if(a==='itdel')it=it.filter(x=>x.id!==b.dataset.i);
+  else if(a==='ittog')it=it.map(x=>x.id===b.dataset.i?{...x,done:!x.done,at:x.done?null:iso(new Date())}:x);
+  else return;
+  await store.save({...g,items:it});
+}
+async function saveT(t){
+  const i=tasks.findIndex(x=>x.id===t.id);i<0?tasks.push(t):tasks[i]=t;render();
+  if(sb&&uid){const {error}=await sb.from('goals').upsert({user_id:uid,id:t.id,data:t,updated_at:new Date().toISOString()},{onConflict:'user_id,id'});setSync(error?'Ошибка сохранения: '+error.message:'Синхронизировано ✓')}
+  else{try{localStorage.setItem('smart_tasks',JSON.stringify(tasks))}catch(e){}}
+}
+async function delT(id){
+  tasks=tasks.filter(x=>x.id!==id);render();
+  if(sb&&uid){const {error}=await sb.from('goals').delete().eq('id',id);setSync(error?'Ошибка удаления: '+error.message:'Синхронизировано ✓')}
+  else{try{localStorage.setItem('smart_tasks',JSON.stringify(tasks))}catch(e){}}
+}
+const dueTs=t=>t.due?new Date(t.due+'T'+(t.time||'09:00')+':00').getTime():null;
+function tasksDue(){const end=new Date();end.setHours(23,59,59,999);return tasks.filter(t=>!t.done&&t.due&&dueTs(t)<=end.getTime()).sort((a,b)=>dueTs(a)-dueTs(b))}
+function taskRow(t){
+  const od=t.due&&dueTs(t)<Date.now()&&!t.done;
+  return `<div class='row2' style='align-items:center;padding:6px 0'><label style='display:flex;gap:8px;align-items:center;margin:0;color:var(--tx);flex:1'><input type='checkbox' style='width:auto;margin:0' ${t.done?'checked':''} data-act='tktog' data-t='${esc(t.id)}'><span style='${t.done?'text-decoration:line-through;color:var(--mut)':''}'>${esc(t.t)}${t.due?` <span class='tag ${od?'bad':''}'>${t.due.slice(8)}.${t.due.slice(5,7)}${t.time?' '+t.time:''}</span>`:''}</span></label>${t.due?`<button class='l' title='В календарь' data-act='tkics' data-t='${esc(t.id)}'>📅</button>`:''}<button class='l' data-act='tkdel' data-t='${esc(t.id)}'>✕</button></div>`;
+}
+function remBanner(){
+  const d=tasksDue();if(!d.length)return'';
+  return `<div class='card'><div class='bd'><b>🔔 Сегодня и просрочено</b><span class='tag'>${d.length}</span></div>${d.slice(0,6).map(taskRow).join('')}</div>`;
+}
+function notifText(){
+  if(!('Notification' in window))return 'Этот браузер не поддерживает уведомления.';
+  const p=Notification.permission;
+  return p==='granted'?'Уведомления включены. Они приходят, пока страница открыта (даже во вкладке). Для напоминаний при закрытой странице добавьте события в календарь телефона (.ics).':p==='denied'?'Уведомления заблокированы в настройках браузера для этого сайта.':'Уведомления выключены.';
+}
+function tasksHTML(){
+  const set=TS(),lists=[...new Set([...DEF_LISTS,...(set.lists||[]),...tasks.map(t=>t.list)])];
+  const ctl=`<div class='card'><div class='bd'><b>Напоминания</b></div><div class='tag' style='margin:6px 0'>${notifText()}</div><div class='ci'><button data-act='tknotif'>🔔 Включить уведомления</button><button data-act='tkics'>📅 Все напоминания в календарь (.ics)</button></div><div class='ci'><span class='tag'>Ежедневно напоминать отметить цели в</span><input type='time' data-dtime value='${esc(set.daily||'')}' style='width:120px'><button data-act='tkdaily'>Сохранить</button></div></div>`;
+  const cards=lists.map(l=>{
+    const ts=tasks.filter(t=>t.list===l),open=ts.filter(t=>!t.done).sort((a,b)=>(dueTs(a)||9e15)-(dueTs(b)||9e15)),done=ts.filter(t=>t.done);
+    return `<div class='card' data-list='${esc(l)}'><div class='bd'><b>${esc(l)}</b><span class='tag'>${open.length} осталось</span></div>${open.map(taskRow).join('')||"<div class='tag' style='margin-top:8px'>Пока пусто</div>"}${done.length?`<details class='more'><summary>Выполнено (${done.length})</summary>${done.map(taskRow).join('')}<button class='l' data-act='tkclr'>Очистить выполненные</button></details>`:''}<div class='ci'><input data-tt placeholder='Новая задача' style='flex:1;width:auto;min-width:140px'><input type='date' data-td><input type='time' data-tm style='width:110px'><button class='p' data-act='tkadd'>Добавить</button></div></div>`;
+  }).join('');
+  const nl=`<div class='card'><div class='ci' style='margin:0'><input data-nl placeholder='Новый список, например «Дача»' style='flex:1;width:auto'><button data-act='tklist'>Создать список</button></div></div>`;
+  return `<div class='sec'>Задачи и списки</div>${remBanner()}${cards}${nl}${ctl}`;
+}
+function icsT(d,t){return d.replace(/-/g,'')+'T'+(t||'09:00').replace(':','')+'00'}
+function icsE(x){return String(x).replace(/([\\;,])/g,'\\$1').replace(/\n/g,'\\n')}
+function makeICS(list,daily){
+  const st=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z',L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//SMART goals//RU','CALSCALE:GREGORIAN'];
+  const ev=(id,start,sum,rr)=>L.push('BEGIN:VEVENT','UID:'+id+'@smart-goals','DTSTAMP:'+st,'DTSTART:'+start,'DURATION:PT15M','SUMMARY:'+icsE(sum),...(rr?['RRULE:'+rr]:[]),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsE(sum),'TRIGGER:PT0S','END:VALARM','END:VEVENT');
+  list.forEach(t=>ev(t.id,icsT(t.due,t.time),t.t));
+  if(daily)ev('daily',icsT(iso(new Date()),daily),'Отметить прогресс по целям','FREQ=DAILY');
+  L.push('END:VCALENDAR');return L.join('\r\n');
+}
+async function enableNotif(){
+  if(!('Notification' in window)){setSync('Уведомления не поддерживаются');return}
+  const p=await Notification.requestPermission();setSync(p==='granted'?'Уведомления включены':'Уведомления не разрешены');render();
+}
+async function taskAct(a,b){
+  const c=b.closest('.card'),id=b.dataset.t;
+  if(a==='tkadd'){
+    const t=c.querySelector('[data-tt]').value.trim();if(!t)return;
+    await saveT({id:'task_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),type:'task',t,list:c.dataset.list,done:false,due:c.querySelector('[data-td]').value||'',time:c.querySelector('[data-tm]').value||'',created:iso(new Date())});
+  }else if(a==='tktog'){const t=tasks.find(x=>x.id===id);if(t)await saveT({...t,done:!t.done})}
+  else if(a==='tkdel')await delT(id);
+  else if(a==='tkclr'){for(const t of tasks.filter(x=>x.list===c.dataset.list&&x.done))await delT(t.id)}
+  else if(a==='tklist'){const n=c.querySelector('[data-nl]').value.trim();if(!n)return;setTS({lists:[...(TS().lists||[]),n]});render()}
+  else if(a==='tknotif')await enableNotif();
+  else if(a==='tkdaily'){setTS({daily:c.querySelector('[data-dtime]').value});setSync('Ежедневное напоминание сохранено');render()}
+  else if(a==='tkics'){
+    const list=id?tasks.filter(t=>t.id===id):tasks.filter(t=>!t.done&&t.due),daily=id?null:TS().daily;
+    if(!list.length&&!daily){setSync('Нет задач с датой для экспорта');return}
+    try{const dl=await claude.use('downloads');await dl.save({filename:id?'reminder.ics':'smart-reminders.ics',data:makeICS(list,daily)})}catch(e){setSync('Не удалось сохранить файл')}
+  }
+}
+function fire(title,body,key){
+  let f={};try{f=JSON.parse(localStorage.getItem('smart_fired')||'{}')}catch(e){}
+  if(f[key])return;f[key]=1;try{localStorage.setItem('smart_fired',JSON.stringify(f))}catch(e){}
+  if('Notification' in window&&Notification.permission==='granted'){try{new Notification(title,{body})}catch(e){}}
+  setSync('🔔 '+title+(body?': '+body:''));
+}
+function tick(){
+  const now=Date.now();
+  tasks.filter(t=>!t.done&&t.due&&dueTs(t)<=now&&now-dueTs(t)<864e5).forEach(t=>fire('Задача',t.t,'t'+t.id+t.due+(t.time||'')));
+  const d=TS().daily;
+  if(d){const n=new Date(),hm=pad2(n.getHours())+':'+pad2(n.getMinutes());if(hm>=d&&pending()>0)fire('Отметьте прогресс по целям','Не заполнено пунктов за сегодня: '+pending(),'d'+iso(n))}
+}
+const pad2=n=>String(n).padStart(2,'0');
+setInterval(tick,30000);
 async function init(){
   render();
   if(!window.supabase||SUPABASE_URL.indexOf('ВСТАВЬТЕ')===0){startLocal('Только на этом устройстве: не настроен Supabase');return}
   sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
   sb.auth.onAuthStateChange((ev,sess)=>{
     if(sess)startSynced(sess);
-    else if(ev==='SIGNED_OUT'){goals=[];store=null;uid=null;render();showAuth('')}
+    else if(ev==='SIGNED_OUT'){goals=[];tasks=[];store=null;uid=null;render();showAuth('')}
   });
   const {data}=await sb.auth.getSession();
   if(data.session)startSynced(data.session);else showAuth('');
