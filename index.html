@@ -4,6 +4,7 @@
 <title>SMART-цели</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🎯%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#f6f5f1;--card:#fff;--tx:#1f2328;--mut:#6b7280;--ac:#2f6f5e;--act:#fff;--ln:#e3e1da;--ok:#2f7d4f;--warn:#b7791f;--bad:#c0392b;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -83,6 +84,7 @@ svg.ch{max-width:560px}
 svg.sm{max-width:380px}
 svg.ht{height:auto;max-width:230px}
 [hidden]{display:none!important}
+.ci input[data-v]{width:150px}
 .card[data-cat=books]{--cc:#2f8a8a}.card[data-cat=buy]{--cc:#d4577a}
 nav{display:flex;gap:6px;overflow-x:auto;margin:12px 0 4px;align-items:center;padding-bottom:4px}
 nav button{flex:none}
@@ -523,8 +525,8 @@ $('#f_tpl').onchange=e=>{
   v('title',t.t);v('cat',t.cat);v('unit',t.u);v('start',t.start);v('target',t.target);v('dl',iso(new Date(Date.now()+t.days*864e5)));v('rep',t.rep||'');v('s',t.s);
   fsubs=t.subs.map((s,i)=>({...s,id:'s'+Date.now().toString(36)+i}));drawSubs();
 };
-const SUPABASE_URL='ВСТАВЬТЕ_PROJECT_URL';
-const SUPABASE_KEY='ВСТАВЬТЕ_ANON_KEY';
+const SUPABASE_URL=(window.SB_CFG&&window.SB_CFG.url)||'ВСТАВЬТЕ_PROJECT_URL';
+const SUPABASE_KEY=(window.SB_CFG&&window.SB_CFG.key)||'ВСТАВЬТЕ_ANON_KEY';
 let sb=null,uid=null;
 function showAuth(msg){$('#auth').hidden=false;$('#list').hidden=true;$('#authm').textContent=msg||''}
 async function loadAll(){
