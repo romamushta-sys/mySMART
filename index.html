@@ -96,7 +96,7 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 <div class="card" id="auth" hidden>
 <b style="font:600 19px 'Literata',Georgia,serif">Вход</b>
 <div class="tag" style="margin:6px 0">Цели хранятся в вашем аккаунте и синхронизируются между устройствами.</div>
-<label>Email<input id="em" type="email" autocomplete="email"></label>
+<label>Email<input id="em" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
 <label>Пароль (не короче 6 символов)<input id="pw" type="password" autocomplete="current-password"></label>
 <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="p" id="login">Войти</button><button id="signup">Регистрация</button></div>
 <div class="tag" id="authm" style="margin-top:8px;color:var(--bad)"></div></div>
@@ -519,13 +519,13 @@ $('#f_tpl').onchange=e=>{
   v('title',t.t);v('cat',t.cat);v('unit',t.u);v('start',t.start);v('target',t.target);v('dl',iso(new Date(Date.now()+t.days*864e5)));v('rep',t.rep||'');v('s',t.s);
   fsubs=t.subs.map((s,i)=>({...s,id:'s'+Date.now().toString(36)+i}));drawSubs();
 };
-const SUPABASE_URL='https://yylmjgzqgsatjstoodhi.supabase.co';
-const SUPABASE_KEY='sb_publishable_uFstBNR9uKC8xd85w4-n4Q_UtBs9Vun';
+const SUPABASE_URL='ВСТАВЬТЕ_PROJECT_URL';
+const SUPABASE_KEY='ВСТАВЬТЕ_ANON_KEY';
 let sb=null,uid=null;
 function showAuth(msg){$('#auth').hidden=false;$('#list').hidden=true;$('#authm').textContent=msg||''}
 async function loadAll(){
   const {data,error}=await sb.from('goals').select('data');
-  if(error){setSync('Ошибка загрузки');return}
+  if(error){setSync('Ошибка загрузки: '+error.message);return}
   goals=(data||[]).map(r=>r.data);setSync('Синхронизировано ✓');render();
   goals.slice().forEach(g=>{const r=rollover(g);if(r)store.save(r)});
 }
@@ -536,30 +536,41 @@ async function startSynced(session){
     save:async g=>{
       const i=goals.findIndex(x=>x.id===g.id);i<0?goals.push(g):goals[i]=g;render();
       const {error}=await sb.from('goals').upsert({user_id:uid,id:g.id,data:g,updated_at:new Date().toISOString()},{onConflict:'user_id,id'});
-      setSync(error?'Ошибка сохранения':'Синхронизировано ✓');
+      setSync(error?'Ошибка сохранения: '+error.message:'Синхронизировано ✓');
     },
     del:async id=>{
       goals=goals.filter(x=>x.id!==id);render();
       const {error}=await sb.from('goals').delete().eq('id',id);
-      setSync(error?'Ошибка удаления':'Синхронизировано ✓');
+      setSync(error?'Ошибка удаления: '+error.message:'Синхронизировано ✓');
     }
   };
   await loadAll();
   sb.channel('goals-'+uid).on('postgres_changes',{event:'*',schema:'public',table:'goals'},()=>loadAll()).subscribe();
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&store)loadAll()});
 }
-$('#login').onclick=async()=>{
-  const email=$('#em').value.trim(),password=$('#pw').value,m=$('#authm');
-  if(!email||password.length<6){m.textContent='Введите email и пароль не короче 6 символов.';return}
-  const {error}=await sb.auth.signInWithPassword({email,password});
-  m.textContent=error?'Ошибка входа: '+error.message:'';
-};
-$('#signup').onclick=async()=>{
-  const email=$('#em').value.trim(),password=$('#pw').value,m=$('#authm');
-  if(!email||password.length<6){m.textContent='Введите email и пароль не короче 6 символов.';return}
-  const {data,error}=await sb.auth.signUp({email,password});
-  m.textContent=error?'Ошибка регистрации: '+error.message:(data.session?'':'Проверьте почту: подтвердите адрес, затем нажмите «Войти».');
-};
+function authErr(m,t){m.style.color='var(--bad)';m.textContent=t}
+async function doAuth(kind){
+  const email=$('#em').value.trim().toLowerCase(),password=$('#pw').value,m=$('#authm');
+  if(!email||password.length<6){authErr(m,'Введите email и пароль не короче 6 символов.');return}
+  m.style.color='var(--mut)';m.textContent=kind==='in'?'Входим…':'Регистрируем…';
+  try{
+    if(kind==='in'){
+      const {data,error}=await sb.auth.signInWithPassword({email,password});
+      if(error){authErr(m,'Ошибка входа: '+error.message);return}
+      if(data&&data.session)await startSynced(data.session);
+      m.textContent='';
+    }else{
+      const {data,error}=await sb.auth.signUp({email,password});
+      if(error){authErr(m,'Ошибка регистрации: '+error.message);return}
+      m.style.color='var(--mut)';
+      m.textContent=data.session?'':'Проверьте почту: подтвердите адрес, затем нажмите «Войти».';
+      if(data.session)await startSynced(data.session);
+    }
+  }catch(e){authErr(m,'Не удалось выполнить запрос: '+(e&&e.message||e))}
+}
+$('#login').onclick=()=>doAuth('in');
+$('#signup').onclick=()=>doAuth('up');
+window.addEventListener('unhandledrejection',e=>{if(!$('#auth').hidden)authErr($('#authm'),'Ошибка: '+(e.reason&&e.reason.message||e.reason))});
 $('#lo').onclick=()=>{$('#mn').hidden=true;if(sb)sb.auth.signOut()};
 function startLocal(note){
   try{goals=JSON.parse(localStorage.getItem('smart_goals')||'[]')}catch(e){}
