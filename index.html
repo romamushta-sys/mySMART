@@ -85,6 +85,7 @@ svg.sm{max-width:380px}
 svg.ht{height:auto;max-width:230px}
 [hidden]{display:none!important}
 .ci input[data-v]{width:150px}
+.st{display:inline-flex;align-items:center;justify-content:center;text-align:center;line-height:1.2;align-self:flex-start;padding:6px 14px}
 .card[data-cat=books]{--cc:#2f8a8a}.card[data-cat=buy]{--cc:#d4577a}
 nav{display:flex;gap:6px;overflow-x:auto;margin:12px 0 4px;align-items:center;padding-bottom:4px}
 nav button{flex:none}
@@ -105,7 +106,7 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 <div class="tag" id="authm" style="margin-top:8px;color:var(--bad)"></div></div>
 <div class="card" id="qkc" hidden><div class="ci" style="margin:0"><input id="qk" style="flex:1;width:auto;min-width:200px" placeholder="Быстрый ввод: «съел 450 ккал», «был в зале»"><button class="p" id="qkb">Записать</button></div><div class="tag" id="qkm" style="margin-top:6px"></div></div>
 <form id="form" class="card" hidden onsubmit="return false">
-<label>Шаблон (необязательно)<select id="f_tpl"><option value="">— без шаблона —</option><option value="weight">Снизить вес</option><option value="money">Накопить на цель (копилка)</option><option value="cushion">Финансовая подушка</option><option value="month">Откладывать каждый месяц</option><option value="books">Прочитать N книг</option><option value="buy">Купить товары из списка</option><option value="habit">Привычка N раз в неделю</option><option value="study">Освоить навык или язык</option></select></label>
+<label>Шаблон (необязательно)<select id="f_tpl"><option value="">— без шаблона —</option><option value="weight">Снизить вес</option><option value="money">Накопить на цель (копилка)</option><option value="cushion">Финансовая подушка</option><option value="month">Откладывать каждый месяц</option><option value="books">Прочитать N книг</option><option value="buy">Купить товары из списка</option><option value="water">Пить воду (стакан 250 мл)</option><option value="habit">Привычка N раз в неделю</option><option value="study">Освоить навык или язык</option></select></label>
 <label>Название цели<input id="f_title" placeholder="Например: накопить на отпуск"></label>
 <div class="row">
 <label>Категория<select id="f_cat"><option value="money">💰 Деньги</option><option value="weight">⚖️ Вес и здоровье</option><option value="study">📚 Учёба</option><option value="books">📖 Книги</option><option value="buy">🛒 Покупки</option><option value="other">🎯 Другое</option></select></label>
@@ -115,9 +116,10 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 <div class="row">
 <label><b>M</b> Сейчас<input id="f_start" type="number" step="any"></label>
 <label><b>M</b> Цель<input id="f_target" type="number" step="any"></label>
-<label>Повтор<select id="f_rep"><option value="">Нет</option><option value="week">Каждую неделю</option><option value="month">Каждый месяц</option></select></label>
+<label>Повтор<select id="f_rep"><option value="">Нет</option><option value="day">Каждый день</option><option value="week">Каждую неделю</option><option value="month">Каждый месяц</option></select></label>
 </div>
 <div class="row"><label>Ставка, % годовых (для накоплений)<input id="f_rate" type="number" step="any"></label><label>Взнос в месяц (для накоплений)<input id="f_pmt" type="number" step="any"></label><label>Прогресс считается по<select id="f_mode"><option value="value">значению (вес, деньги)</option><option value="items">выполненным пунктам (книги, покупки)</option></select></label></div>
+<div class="row"><label>Ввод значения<select id="f_inc"><option value="">авто (по категории)</option><option value="add">прибавлять к текущему</option><option value="set">заменять значением</option></select></label><label>Быстрые кнопки (через запятую)<input id="f_chips" placeholder="Стакан=250, 500"></label><span></span></div>
 <label><b>S</b> Конкретно: что именно и как вы это сделаете<textarea id="f_s" rows="2"></textarea></label>
 <label><b>A</b> Достижимо: почему это реально, какие ресурсы есть<textarea id="f_a" rows="2"></textarea></label>
 <label><b>R</b> Значимо: зачем вам эта цель<textarea id="f_r" rows="2"></textarea></label>
@@ -198,7 +200,7 @@ ${pts.map((p,i)=>`<circle cx="${p.x}" cy="${p.y}" r="${i===pts.length-1?4.5:3}" 
 <text x="${L}" y="${H-8}" font-size="9" fill="var(--mut)">${dm(t0)}</text><text x="${W-R}" y="${H-8}" text-anchor="end" font-size="9" fill="var(--mut)">${dm(t1)}</text></svg><div class="tag">Сплошная линия — факт, пунктир — план к сроку, кружки — вехи 25/50/75%, точки — прогноз</div>`;
 }
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-function addPeriod(s,r){const d=new Date(s+'T00:00:00');r==='week'?d.setDate(d.getDate()+7):d.setMonth(d.getMonth()+1);return iso(d)}
+function addPeriod(s,r){const d=new Date(s+'T00:00:00');r==='day'?d.setDate(d.getDate()+1):r==='week'?d.setDate(d.getDate()+7):d.setMonth(d.getMonth()+1);return iso(d)}
 function rollover(g){
   if(!g.repeat||g.archived)return null;let n=0,x={...g};const h=(g.history||[]).slice();
   while(x.deadline<today()&&n<60){h.push({to:x.deadline,p:Math.round(pct(x))});x={...x,created:x.deadline+'T00:00:00',deadline:addPeriod(x.deadline,x.repeat),entries:[],history:h};n++}
@@ -206,7 +208,7 @@ function rollover(g){
 }
 function rep(g){
   if(!g.repeat)return'';const h=g.history||[];
-  return ` · 🔁 ${g.repeat==='week'?'каждую неделю':'каждый месяц'}${h.length?` (цикл ${h.length+1}, закрыто ${h.filter(x=>x.p>=100).length} из ${h.length})`:''}`;
+  return ` · 🔁 ${g.repeat==='day'?'каждый день':g.repeat==='week'?'каждую неделю':'каждый месяц'}${h.length?` (цикл ${h.length+1}, закрыто ${h.filter(x=>x.p>=100).length} из ${h.length})`:''}`;
 }
 function stl(g){
   if(pct(g)>=100)return'';const e=entries(g),ref=e.length?new Date(e[e.length-1].d):new Date(g.created),n=Math.floor((Date.now()-ref)/864e5);
@@ -235,12 +237,12 @@ function render(){
   L.innerHTML=(mode==='arch'?'':remBanner())+(mode==='arch'?"<div class='sec'>Архив · завершённые и отложенные цели</div>":(goals.filter(g=>!g.archived).length>=3?overview():''))+gs.map(g=>{const s=status(g),p=pct(g);return `<div class="card" data-cat="${esc(g.cat)}" data-id="${esc(g.id)}">
 <div class="bd"><div><b>${esc(g.title)}</b><div class="tag">${CATS[g.cat]||''} · до ${esc(g.deadline)}${rep(g)}${stl(g)}</div></div><div class="st ${s.k}">${s.t}</div></div>
 <div class="hero"><div class="big"><span>${fmt(cur(g))}</span><small>${esc(g.unit)} · цель ${fmt(g.target)}</small></div>${ring(p,s.k)}</div>
-<div class="tag">старт ${fmt(g.start)} ${esc(g.unit)}</div>
+<div class="tag">старт ${fmt(g.start)} ${esc(g.unit)}</div>${chipsHTML(g)}
 ${chart(g)}
 ${g.specific||g.relevant?`<div class="tag" style="margin-top:6px">${g.specific?'S: '+esc(g.specific):''}${g.relevant?' · R: '+esc(g.relevant):''}</div>`:''}
 ${(g.subs||[]).length?`<details class="more" data-gid="${esc(g.id)}"${openD.has(g.id)?' open':''}><summary>Подкатегории и динамика (${g.subs.length})</summary>${subHTML(g)}${combo(g)}</details>`:''}${itemsHTML(g)}<ul class="tips">${tipsHTML(g)}</ul>
 ${aiText[g.id]?`<div class="ai">${esc(aiText[g.id])}</div>`:''}
-<div class="ci">${g.mode==='items'?'':`<input type="number" step="any" placeholder="Текущее значение" data-v><input type="date" value="${today()}" data-d><button class="p" data-act="ci">Отметить</button>`}
+<div class="ci">${g.mode==='items'?'':`<input type="number" step="any" placeholder="${isAdd(g)?'Добавить, '+esc(g.unit):'Текущее значение'}" data-v><input type="date" value="${today()}" data-d><button class="p" data-act="ci">${isAdd(g)?'Добавить':'Отметить'}</button>`}
 <button class="l" data-act="${g.archived?'unarch':'arch'}">${g.archived?'Вернуть':'В архив'}</button><button class="l" data-act="edit">Изменить</button><button class="l" data-act="del">${pendingDel===g.id?'Точно удалить?':'Удалить'}</button></div></div>`}).join('');
 }
 $('#add').onclick=()=>openForm();
@@ -248,7 +250,7 @@ $('#cancel').onclick=()=>{$('#form').hidden=true};
 function openForm(g){
   editId=g?g.id:null;$('#form').hidden=false;$('#ferr').textContent='';
   const v=(k,x)=>$('#f_'+k).value=x??'';
-  v('title',g?.title);v('cat',g?.cat||'money');v('unit',g?.unit);v('dl',g?.deadline);v('start',g?.start);v('target',g?.target);$('#f_tpl').value='';$('#f_tpl').parentElement.hidden=!!g;fsubs=(g?.subs||[]).map(s=>({...s}));drawSubs();v('rep',g?.repeat);v('rate',g?.rate);v('pmt',g?.pmt);v('mode',g?.mode||'value');tplItems=[];v('s',g?.specific);v('a',g?.achievable);v('r',g?.relevant);
+  v('title',g?.title);v('cat',g?.cat||'money');v('unit',g?.unit);v('dl',g?.deadline);v('start',g?.start);v('target',g?.target);$('#f_tpl').value='';$('#f_tpl').parentElement.hidden=!!g;fsubs=(g?.subs||[]).map(s=>({...s}));drawSubs();v('rep',g?.repeat);v('rate',g?.rate);v('pmt',g?.pmt);v('mode',g?.mode||'value');v('inc',g?.inc||'');v('chips',chipsText(g));tplItems=[];v('s',g?.specific);v('a',g?.achievable);v('r',g?.relevant);
   $('#form').scrollIntoView({behavior:'smooth'});
 }
 $('#save').onclick=async()=>{
@@ -256,7 +258,7 @@ $('#save').onclick=async()=>{
   const start=parseFloat(val('start')),target=parseFloat(val('target'));
   if(!val('title')||!val('unit')||!val('dl')||isNaN(start)||isNaN(target)){$('#ferr').textContent='Заполните название, единицу, значения «сейчас» и «цель» и срок.';return}
   if(start===target){$('#ferr').textContent='«Сейчас» и «Цель» не должны совпадать.';return}
-  const g={...g0,id:g0.id||'g'+Date.now().toString(36),title:val('title'),cat:val('cat'),unit:val('unit'),deadline:val('dl'),start,target,repeat:val('rep'),mode:val('mode')||'value',items:g0.items||tplItems.map(t=>({...t})),rate:parseFloat(val('rate'))||0,pmt:parseFloat(val('pmt'))||0,subs:fsubs.filter(s=>(s.name||'').trim()).map(s=>({...s,name:s.name.trim()})),logs:g0.logs||[],specific:val('s'),achievable:val('a'),relevant:val('r'),created:g0.created||new Date().toISOString(),entries:g0.entries||[]};
+  const g={...g0,id:g0.id||'g'+Date.now().toString(36),title:val('title'),cat:val('cat'),unit:val('unit'),deadline:val('dl'),start,target,repeat:val('rep'),mode:val('mode')||'value',inc:val('inc'),chips:parseChips(val('chips')),items:g0.items||tplItems.map(t=>({...t})),rate:parseFloat(val('rate'))||0,pmt:parseFloat(val('pmt'))||0,subs:fsubs.filter(s=>(s.name||'').trim()).map(s=>({...s,name:s.name.trim()})),logs:g0.logs||[],specific:val('s'),achievable:val('a'),relevant:val('r'),created:g0.created||new Date().toISOString(),entries:g0.entries||[]};
   try{await store.save(g);$('#form').hidden=true}catch(e){$('#ferr').textContent='Не удалось сохранить, попробуйте ещё раз.'}
 };
 $('#list').onclick=async ev=>{
@@ -265,6 +267,7 @@ $('#list').onclick=async ev=>{
   if(a!=='del'&&pendingDel){pendingDel=null}
   if(a==='edit')openForm(g);
   else if(a==='arch'||a==='unarch')await store.save({...g,archived:a==='arch'?iso(new Date()):null});
+  else if(a.startsWith('qk'))await quickAct(a,b,g);
   else if(a.startsWith('tk'))await taskAct(a,b);
   else if(a.startsWith('it'))await itemAct(a,b,g);
   else if(a==='delrec')await delRec(b,g);
@@ -273,8 +276,7 @@ $('#list').onclick=async ev=>{
   else if(a==='ci'){
     const v=parseFloat(c.querySelector('[data-v]').value),d=c.querySelector('[data-d]').value||today();
     if(isNaN(v))return;
-    const e=(g.entries||[]).filter(x=>x.d!==d).concat({d,v});
-    await store.save({...g,entries:e});
+    await store.save({...g,entries:isAdd(g)?addAt(g,d,v):(g.entries||[]).filter(x=>x.d!==d).concat({d,v})});
   }else if(a==='del'){
     if(pendingDel===g.id){pendingDel=null;await store.del(g.id)}else{pendingDel=g.id;render()}
   }else if(a==='ai'&&sample){
@@ -289,7 +291,7 @@ $('#list').onclick=async ev=>{
 $('#xl').onclick=async()=>{
   try{
     if(!window.XLSX)throw 0;const dl=await claude.use('downloads');if(!dl)throw 0;
-    const A=goals.map(g=>({'Цель':g.title,'Категория':CATS[g.cat]||'','Единица':g.unit,'Старт':g.start,'Сейчас':cur(g),'Цель (значение)':g.target,'Прогресс, %':Math.round(pct(g)),'Срок':g.deadline,'Статус':status(g).t,'Повтор':g.repeat==='week'?'неделя':g.repeat==='month'?'месяц':'','Что конкретно':g.specific||'','Зачем':g.relevant||''}));
+    const A=goals.map(g=>({'Цель':g.title,'Категория':CATS[g.cat]||'','Единица':g.unit,'Старт':g.start,'Сейчас':cur(g),'Цель (значение)':g.target,'Прогресс, %':Math.round(pct(g)),'Срок':g.deadline,'Статус':status(g).t,'Повтор':g.repeat==='day'?'день':g.repeat==='week'?'неделя':g.repeat==='month'?'месяц':'','Что конкретно':g.specific||'','Зачем':g.relevant||''}));
     const B=goals.flatMap(g=>entries(g).map(e=>({'Цель':g.title,'Дата':e.d,'Значение':e.v})));
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(A),'Цели');
@@ -445,9 +447,9 @@ function heat(g,s){
 }
 function todayHTML(){
   const act=goals.filter(g=>!g.archived),nd=iso(new Date());
-  const rows=act.map(g=>`<div class='card' data-cat='${esc(g.cat)}' data-id='${esc(g.id)}'><div class='bd'><b>${esc(g.title)}</b><span class='tag'>сейчас ${fmt(cur(g))} ${esc(g.unit)} · цель ${fmt(g.target)}</span></div>${(g.subs||[]).map(s=>{
+  const rows=act.map(g=>`<div class='card' data-cat='${esc(g.cat)}' data-id='${esc(g.id)}'><div class='bd'><b>${esc(g.title)}</b><span class='tag'>сейчас ${fmt(cur(g))} ${esc(g.unit)} · цель ${fmt(g.target)}</span></div>${chipsHTML(g)}${(g.subs||[]).map(s=>{
     const t=dayTotal(g,s.id,nd),chk=s.kind==='chk';
-    return `<div class='sub' data-s='${esc(s.id)}'><div class='bd'><b style="font:600 15px Onest,sans-serif">${esc(s.name)}</b><span class='tag'>${chk?(t?'сегодня отмечено ✓':'сегодня не отмечено'):`сегодня: ${fmt(t)} ${esc(s.unit||'')}${s.norm?` (${s.kind==='max'?'≤':'≥'} ${fmt(s.norm)})`:''}`}</span></div><div class='ci'><input type='hidden' data-sd value='${nd}'>${chk?`<button class='p' data-act='stog'>${t?'Снять отметку':'Отметить сегодня'}</button>`:`<input type='number' step='any' data-sv placeholder='+ ${esc(s.unit||'значение')}'><button class='p' data-act='sadd'>Добавить</button><button class='l' data-act='sclr'>Сбросить</button>`}</div></div>`}).join('')}${g.mode==='items'?`<div class='tag' style='margin-top:8px'>Пункты цели отмечайте на вкладке «Цели»</div>`:`<div class='ci'><input type='number' step='any' placeholder='Текущее значение' data-v><input type='date' value='${today()}' data-d><button class='p' data-act='ci'>Отметить</button></div>`}</div>`).join('');
+    return `<div class='sub' data-s='${esc(s.id)}'><div class='bd'><b style="font:600 15px Onest,sans-serif">${esc(s.name)}</b><span class='tag'>${chk?(t?'сегодня отмечено ✓':'сегодня не отмечено'):`сегодня: ${fmt(t)} ${esc(s.unit||'')}${s.norm?` (${s.kind==='max'?'≤':'≥'} ${fmt(s.norm)})`:''}`}</span></div><div class='ci'><input type='hidden' data-sd value='${nd}'>${chk?`<button class='p' data-act='stog'>${t?'Снять отметку':'Отметить сегодня'}</button>`:`<input type='number' step='any' data-sv placeholder='+ ${esc(s.unit||'значение')}'><button class='p' data-act='sadd'>Добавить</button><button class='l' data-act='sclr'>Сбросить</button>`}</div></div>`}).join('')}${g.mode==='items'?`<div class='tag' style='margin-top:8px'>Пункты цели отмечайте на вкладке «Цели»</div>`:`<div class='ci'><input type='number' step='any' placeholder='${isAdd(g)?'Добавить, '+esc(g.unit):'Текущее значение'}' data-v><input type='date' value='${today()}' data-d><button class='p' data-act='ci'>${isAdd(g)?'Добавить':'Отметить'}</button></div>`}</div>`).join('');
   return `<div class='sec'>Сегодня · ${new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}</div>${rows}`;
 }
 $('#qkb').onclick=async()=>{
@@ -492,12 +494,16 @@ function msMarks(g,X,Y,t0,t1){
 }
 async function delRec(b,g){
   const i=+b.dataset.i;
+  if(b.dataset.k==='e'&&isAdd(g)){
+    const e=(g.entries||[])[i],S=entries(g),k=S.indexOf(e),prev=k>0?S[k-1].v:g.start,delta=e.v-prev;
+    await store.save({...g,entries:S.filter(x=>x!==e).map(x=>x.d>e.d?{...x,v:x.v-delta}:x)});return;
+  }
   await store.save(b.dataset.k==='e'?{...g,entries:(g.entries||[]).filter((_,j)=>j!==i)}:{...g,logs:(g.logs||[]).filter((_,j)=>j!==i)});
 }
 function logHTML(){
   const cards=goals.filter(g=>!g.archived).map(g=>{
     const sb=id=>(g.subs||[]).find(s=>s.id===id);
-    const it=[...(g.entries||[]).map((p,i)=>({k:'e',i,d:p.d,t:`${fmt(p.v)} ${esc(g.unit)}`})),...(g.logs||[]).map((l,i)=>{const s=sb(l.s);return{k:'l',i,d:l.d,t:`${esc(s?s.name:'—')}: ${s&&s.kind==='chk'?'отмечено':fmt(l.v)}`}})].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,40);
+    const it=[...(g.entries||[]).map((p,i)=>({k:'e',i,d:p.d,t:entryText(g,p)})),...(g.logs||[]).map((l,i)=>{const s=sb(l.s);return{k:'l',i,d:l.d,t:`${esc(s?s.name:'—')}: ${s&&s.kind==='chk'?'отмечено':fmt(l.v)}`}})].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,40);
     return `<div class='card' data-cat='${esc(g.cat)}' data-id='${esc(g.id)}'><div class='bd'><b>${esc(g.title)}</b><span class='tag'>последние записи</span></div>${it.length?it.map(x=>`<div class='row2'><div>${x.d} · ${x.t}</div><button class='l' data-act='delrec' data-k='${x.k}' data-i='${x.i}'>✕</button></div>`).join(''):"<div class='tag' style='margin-top:8px'>Записей пока нет.</div>"}</div>`;
   }).join('');
   return `<div class='sec'>Журнал записей · удаляйте ошибочные</div>${cards}`;
@@ -595,17 +601,18 @@ const setTS=o=>{try{localStorage.setItem('smart_set',JSON.stringify({...TS(),...
 $('#shb').onclick=()=>setMode('shop');$('#plb').onclick=()=>setMode('plan');$('#rmb').onclick=()=>setMode('rem');
 const TPL2={
   weight:{t:'Снизить вес',cat:'weight',u:'кг',days:90,s:'Контролировать питание и ходить на тренировки по расписанию',subs:[{name:'Контроль питания',kind:'max',norm:null,unit:'ккал'},{name:'Тренировки',kind:'chk',norm:3,unit:'раз'}],items:['Купить весы','Выбрать зал или программу тренировок','Составить рацион на неделю','Сделать стартовые замеры']},
-  money:{t:'Накопить на …',cat:'money',u:'₽',start:0,days:180,s:'Откладывать фиксированную сумму в день дохода',items:['Определить сумму и срок','Открыть отдельный счёт или вклад','Настроить автоперевод в день дохода']},
-  cushion:{t:'Финансовая подушка',cat:'money',u:'₽',start:0,days:365,s:'Накопить запас на несколько месяцев расходов',items:['Посчитать месячные расходы','Выбрать, где хранить подушку','Настроить автоперевод']},
-  month:{t:'Откладывать каждый месяц',cat:'money',u:'₽',start:0,days:30,rep:'month',s:'Переводить фиксированную сумму в день дохода',items:[]},
+  money:{t:'Накопить на …',cat:'money',u:'₽',start:0,days:180,inc:'add',chips:'1000, 5000, 10000',s:'Откладывать фиксированную сумму в день дохода',items:['Определить сумму и срок','Открыть отдельный счёт или вклад','Настроить автоперевод в день дохода']},
+  cushion:{t:'Финансовая подушка',cat:'money',u:'₽',start:0,days:365,inc:'add',chips:'1000, 5000, 10000',s:'Накопить запас на несколько месяцев расходов',items:['Посчитать месячные расходы','Выбрать, где хранить подушку','Настроить автоперевод']},
+  month:{t:'Откладывать каждый месяц',cat:'money',u:'₽',start:0,days:30,inc:'add',chips:'1000, 5000, 10000',rep:'month',s:'Переводить фиксированную сумму в день дохода',items:[]},
   books:{t:'Прочитать книги',cat:'books',u:'книг',start:0,target:12,days:365,mode:'items',s:'Читать ежедневно в заранее выбранное время',items:[]},
   buy:{t:'Купить из списка',cat:'buy',u:'покупок',start:0,target:5,days:60,mode:'items',s:'Сравнить цены и купить по списку',items:[]},
+  water:{t:'Пить воду',cat:'other',u:'мл',start:0,target:2000,days:0,rep:'day',inc:'add',chips:'Стакан=250, 500',s:'Пить воду в течение дня, стакан 250 мл',items:[]},
   habit:{t:'Привычка',cat:'other',u:'раз',start:0,target:3,days:7,rep:'week',s:'Делать выбранное действие в заранее назначенные дни',items:[]},
   study:{t:'Освоить …',cat:'study',u:'часов',start:0,target:60,days:90,s:'Заниматься по расписанию несколько раз в неделю',items:[]}
 };
 $('#f_tpl').onchange=e=>{
   const t=TPL2[e.target.value];if(!t)return;const v=(k,x)=>$('#f_'+k).value=x??'';
-  v('title',t.t);v('cat',t.cat);v('unit',t.u);v('start',t.start);v('target',t.target);v('dl',iso(new Date(Date.now()+t.days*864e5)));v('rep',t.rep||'');v('s',t.s);v('mode',t.mode||'value');
+  v('title',t.t);v('cat',t.cat);v('unit',t.u);v('start',t.start);v('target',t.target);v('dl',iso(new Date(Date.now()+t.days*864e5)));v('rep',t.rep||'');v('s',t.s);v('mode',t.mode||'value');v('inc',t.inc||'');v('chips',t.chips||'');
   fsubs=(t.subs||[]).map((s,i)=>({...s,id:'s'+Date.now().toString(36)+i}));drawSubs();
   tplItems=(t.items||[]).map((x,i)=>({id:'i'+Date.now().toString(36)+i,t:x,p:0,done:false}));
 };
@@ -758,6 +765,36 @@ $('#list').addEventListener('keydown',e=>{
   if(b){e.preventDefault();b.click()}
 });
 {const h=location.hash.slice(1);if(['today','week','arch','shop','plan','rem'].includes(h))mode=h}
+const isAdd=g=>g.inc?g.inc==='add':g.cat==='money';
+function addAt(g,d,v){
+  const S=entries(g),prev=S.filter(x=>x.d<=d).pop(),base=prev?prev.v:g.start;
+  return S.filter(x=>x.d!==d).map(x=>x.d>d?{...x,v:x.v+v}:x).concat({d,v:base+v}).sort((a,b)=>a.d.localeCompare(b.d));
+}
+function entryText(g,p){
+  if(!isAdd(g))return `${fmt(p.v)} ${esc(g.unit)}`;
+  const S=entries(g),k=S.indexOf(p),prev=k>0?S[k-1].v:g.start,dl=p.v-prev;
+  return `${dl>=0?'+':'−'}${fmt(Math.abs(dl))} ${esc(g.unit)} · всего ${fmt(p.v)}`;
+}
+function parseChips(t){
+  return (t||'').split(',').map(x=>x.trim()).filter(Boolean).map(x=>{const p=x.split('='),v=parseFloat((p.length>1?p[1]:p[0]).replace(',','.'));return isNaN(v)?null:{l:p.length>1?p[0].trim():'',v}}).filter(Boolean);
+}
+const chipsText=g=>((g&&g.chips)||[]).map(c=>(c.l?c.l+'=':'')+c.v).join(', ');
+function chipsHTML(g){
+  if(g.archived)return'';let h='';
+  if(g.mode==='items'){const nx=(g.items||[]).find(i=>!i.done);h=`<button class='p' data-act='qkbook'>${g.cat==='books'?'📖 Прочитана':'✓ Выполнено'}${nx?': '+esc(nx.t):''}</button>`}
+  else if(isAdd(g))h=(g.chips||[]).map((c,i)=>`<button class='p' data-act='qkadd' data-i='${i}'>${c.l?esc(c.l)+' ':''}+${fmt(c.v)} ${esc(g.unit)}</button>`).join('');
+  return h?`<div class='ci' style='margin:10px 0 0'>${h}</div>`:'';
+}
+async function quickAct(a,b,g){
+  const d=iso(new Date());
+  if(a==='qkadd'){const c=(g.chips||[])[+b.dataset.i];if(!c)return;await store.save({...g,entries:addAt(g,d,c.v)})}
+  else if(a==='qkbook'){
+    const it=(g.items||[]).slice(),k=it.findIndex(i=>!i.done);
+    if(k>=0)it[k]={...it[k],done:true,at:d};
+    else it.push({id:'i'+Date.now().toString(36)+it.length,t:(g.cat==='books'?'Книга ':'Пункт ')+(it.length+1),p:0,done:true,at:d});
+    await store.save({...g,items:it});
+  }
+}
 async function init(){
   render();
   if(!window.supabase||SUPABASE_URL.indexOf('ВСТАВЬТЕ')===0){startLocal('Только на этом устройстве: не настроен Supabase');return}
