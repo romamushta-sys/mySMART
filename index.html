@@ -235,7 +235,7 @@ function render(){
   if(mode==='week'){L.innerHTML=weekHTML();return}
   if(mode==='all'&&!gs.length){L.innerHTML="<div class='empty'>Все цели в архиве. Создайте новую или откройте «Архив».</div>";return}
   if(mode==='arch'&&!gs.length){L.innerHTML="<div class='empty'>В архиве пока пусто.</div>";return}
-  L.innerHTML=(mode==='arch'?'':remBanner())+(mode==='arch'?"<div class='sec'>Архив · завершённые и отложенные цели</div>":(goals.filter(g=>!g.archived).length>=3?overview():''))+gs.map(g=>{const s=status(g),p=pct(g);return `<div class="card" data-cat="${esc(g.cat)}" data-id="${esc(g.id)}">
+  L.innerHTML=(mode==='arch'?'':remBanner()+quickPanel())+(mode==='arch'?"<div class='sec'>Архив · завершённые и отложенные цели</div>":(goals.filter(g=>!g.archived).length>=3?overview():''))+gs.map(g=>{const s=status(g),p=pct(g);return `<div class="card" data-cat="${esc(g.cat)}" data-id="${esc(g.id)}">
 <div class="bd"><div><b>${esc(g.title)}</b><div class="tag">${CATS[g.cat]||''} · до ${esc(g.deadline)}${rep(g)}${stl(g)}</div></div><div class="st ${s.k}">${s.t}</div></div>
 <div class="hero"><div class="big"><span>${fmt(cur(g))}</span><small>${esc(g.unit)} · цель ${fmt(g.target)}</small></div>${ring(p,s.k)}</div>
 <div class="tag">старт ${fmt(g.start)} ${esc(g.unit)}</div>${chipsHTML(g)}
@@ -761,8 +761,8 @@ function tick(){
 const pad2=n=>String(n).padStart(2,'0');
 setInterval(tick,30000);
 $('#list').addEventListener('keydown',e=>{
-  if(e.key!=='Enter'||!e.target.matches||!e.target.matches('[data-tt],[data-it],[data-nl]'))return;
-  const b=e.target.closest('.card').querySelector("[data-act='tkadd'],[data-act='itadd'],[data-act='tklist']");
+  if(e.key!=='Enter'||!e.target.matches||!e.target.matches('[data-tt],[data-it],[data-nl],[data-qv]'))return;
+  const b=e.target.closest('.card').querySelector("[data-act='tkadd'],[data-act='itadd'],[data-act='tklist'],[data-act='qkgen']");
   if(b){e.preventDefault();b.click()}
 });
 {const h=location.hash.slice(1);if(['today','week','arch','shop','plan','rem'].includes(h))mode=h}
@@ -780,31 +780,45 @@ function parseChips(t){
   return (t||'').split(',').map(x=>x.trim()).filter(Boolean).map(x=>{const p=x.split('='),v=parseFloat((p.length>1?p[1]:p[0]).replace(',','.'));return isNaN(v)?null:{l:p.length>1?p[0].trim():'',v}}).filter(Boolean);
 }
 const chipsText=g=>((g&&g.chips)||[]).map(c=>(c.l?c.l+'=':'')+c.v).join(', ');
-function chipsHTML(g){
-  if(g.archived)return'';let h='';
-  if(g.mode==='items'){const nx=(g.items||[]).find(i=>!i.done);h=`<button class='p' data-act='qkbook'>${g.cat==='books'?'📖 Прочитана':'✓ Выполнено'}${nx?': '+esc(nx.t):''}</button>`}
-  else if(isAdd(g))h=(g.chips||[]).map((c,i)=>`<button class='p' data-act='qkadd' data-i='${i}'>${c.l?esc(c.l)+' ':''}+${fmt(c.v)} ${esc(g.unit)}</button>`).join('');
-  return h?`<div class='ci' style='margin:10px 0 0'>${h}</div>`:'';
+function chipsOf(g){
+  if(Array.isArray(g.chips))return g.chips;
+  if(g.cat==='money')return [{l:'',v:1000},{l:'',v:5000},{l:'',v:10000}];
+  if(/^мл$/i.test(g.unit||''))return [{l:'Стакан',v:250},{l:'',v:500}];
+  return [];
+}
+function chipsInner(g){
+  if(g.archived)return'';
+  if(g.mode==='items'){const nx=(g.items||[]).find(i=>!i.done);return `<button class='p' data-act='qkbook' data-g='${esc(g.id)}'>${g.cat==='books'?'📖 Прочитана':'✓ Выполнено'}${nx?': '+esc(nx.t):''}</button>`}
+  if(!isAdd(g))return'';
+  return chipsOf(g).map((c,i)=>`<button class='p' data-act='qkadd' data-i='${i}' data-g='${esc(g.id)}'>${c.l?esc(c.l)+' ':''}+${fmt(c.v)} ${esc(g.unit)}</button>`).join('');
+}
+function chipsHTML(g){const h=chipsInner(g);return h?`<div class='ci' style='margin:10px 0 0'>${h}</div>`:''}
+function quickPanel(){
+  const act=goals.filter(g=>!g.archived);
+  const rows=act.map(g=>{const h=chipsInner(g);return h?`<div class='row2' style='align-items:center'><div style='min-width:110px'><b style="font:600 15px Onest,sans-serif">${esc(g.title)}</b></div><div class='ci' style='margin:0'>${h}</div></div>`:''}).join('');
+  const add=act.filter(g=>isAdd(g)&&g.mode!=='items');
+  const form=add.length?`<div class='ci'><select data-qg style='width:auto;max-width:220px'>${add.map(g=>`<option value='${esc(g.id)}'>${esc(g.title)}</option>`).join('')}</select><input type='number' step='any' data-qv placeholder='Сумма или количество' style='width:170px'><button class='p' data-act='qkgen'>Добавить</button></div>`:'';
+  if(!rows&&!form)return'';
+  return `<div class='card'><div class='bd'><b>⚡ Быстрое добавление</b></div>${rows}${form}</div>`;
 }
 async function quickAct(a,b,g){
-  const d=iso(new Date());
-  if(a==='qkadd'){const c=(g.chips||[])[+b.dataset.i];if(!c)return;await store.save({...g,entries:addAt(g,d,c.v)})}
+  const d=iso(new Date()),c=b.closest('.card');let ng=null;
+  g=g||goals.find(x=>x.id===b.dataset.g);
+  if(a==='qkgen'){
+    const gg=goals.find(x=>x.id===c.querySelector('[data-qg]').value),inp=c.querySelector('[data-qv]'),v=parseFloat(inp.value);
+    if(!gg||isNaN(v))return;ng={...gg,entries:addAt(gg,d,v)};inp.value='';
+  }else if(!g)return;
+  else if(a==='qkadd'){const ch=chipsOf(g)[+b.dataset.i];if(!ch)return;ng={...g,entries:addAt(g,d,ch.v)}}
   else if(a==='qkbook'){
     const it=(g.items||[]).slice(),k=it.findIndex(i=>!i.done);
     if(k>=0)it[k]={...it[k],done:true,at:d};
     else it.push({id:'i'+Date.now().toString(36)+it.length,t:(g.cat==='books'?'Книга ':'Пункт ')+(it.length+1),p:0,done:true,at:d});
-    await store.save({...g,items:it});
+    ng={...g,items:it};
   }
+  if(!ng)return;
+  await store.save(ng);
+  setSync('✓ '+ng.title+': '+fmt(cur(ng))+' '+ng.unit+' из '+fmt(ng.target));
 }
-const THEMES=[['','🌓 Авто'],['light','☀️ Светлая'],['dark','🌙 Тёмная']];
-function applyTheme(t){
-  const r=document.documentElement;
-  if(t)r.setAttribute('data-theme',t);else r.removeAttribute('data-theme');
-  try{t?localStorage.setItem('smart_theme',t):localStorage.removeItem('smart_theme')}catch(e){}
-  $('#thm').textContent=(THEMES.find(x=>x[0]===(t||''))||THEMES[0])[1];
-}
-$('#thm').onclick=()=>{const c=document.documentElement.getAttribute('data-theme')||'',i=THEMES.findIndex(x=>x[0]===c);applyTheme(THEMES[(i+1)%THEMES.length][0])};
-applyTheme(document.documentElement.getAttribute('data-theme')||'');
 async function init(){
   render();
   if(!window.supabase||SUPABASE_URL.indexOf('ВСТАВЬТЕ')===0){startLocal('Только на этом устройстве: не настроен Supabase');return}
