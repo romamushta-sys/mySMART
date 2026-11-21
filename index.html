@@ -4,6 +4,7 @@
 <title>SMART-цели</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🎯%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>try{var _t=localStorage.getItem("smart_theme");if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -87,7 +88,7 @@ svg.ht{height:auto;max-width:230px}
 .ci input[data-v]{width:150px}
 .st{display:inline-flex;align-items:center;justify-content:center;text-align:center;line-height:1.2;align-self:flex-start;padding:6px 14px}
 .card[data-cat=books]{--cc:#2f8a8a}.card[data-cat=buy]{--cc:#d4577a}
-nav{display:flex;gap:6px;overflow-x:auto;margin:12px 0 4px;align-items:center;padding-bottom:4px}
+nav{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 4px;align-items:center}
 nav button{flex:none}
 #mn{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:12px}
@@ -95,7 +96,7 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 </head>
 <body><main>
 <header><h1>Мои цели<small>SMART</small></h1><span><span class="sync" id="sync">Подключение…</span> <button class="p" id="add">+ Новая цель</button></span></header>
-<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="shb">Покупки</button><button id="plb">План</button><button id="rmb">Напоминания</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button></nav>
+<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="shb">Покупки</button><button id="plb">План</button><button id="rmb">Напоминания</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button><button class="l" id="thm" title="Тема оформления">🌓 Авто</button></nav>
 <div id="mn" hidden><button id="xl">⬇ Excel</button><button id="bk">Резервная копия</button><button id="rs">Восстановить</button><button id="lg">Журнал записей</button><button id="lo">Выйти</button><input type="file" id="rsf" accept=".json,application/json" hidden></div>
 <div class="card" id="auth" hidden>
 <b style="font:600 19px 'Literata',Georgia,serif">Вход</b>
@@ -795,6 +796,15 @@ async function quickAct(a,b,g){
     await store.save({...g,items:it});
   }
 }
+const THEMES=[['','🌓 Авто'],['light','☀️ Светлая'],['dark','🌙 Тёмная']];
+function applyTheme(t){
+  const r=document.documentElement;
+  if(t)r.setAttribute('data-theme',t);else r.removeAttribute('data-theme');
+  try{t?localStorage.setItem('smart_theme',t):localStorage.removeItem('smart_theme')}catch(e){}
+  $('#thm').textContent=(THEMES.find(x=>x[0]===(t||''))||THEMES[0])[1];
+}
+$('#thm').onclick=()=>{const c=document.documentElement.getAttribute('data-theme')||'',i=THEMES.findIndex(x=>x[0]===c);applyTheme(THEMES[(i+1)%THEMES.length][0])};
+applyTheme(document.documentElement.getAttribute('data-theme')||'');
 async function init(){
   render();
   if(!window.supabase||SUPABASE_URL.indexOf('ВСТАВЬТЕ')===0){startLocal('Только на этом устройстве: не настроен Supabase');return}
