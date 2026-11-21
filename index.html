@@ -101,7 +101,7 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 </head>
 <body><main>
 <header><h1>Мои цели<small>SMART</small></h1><span><span class="sync" id="sync">Подключение…</span> <button class="p" id="add">+ Новая цель</button></span></header>
-<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="shb">Покупки</button><button id="plb">План</button><button id="rmb">Напоминания</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button><button class="l" id="thm" title="Тема оформления">🌓 Авто</button></nav>
+<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="fdb">Еда</button><button id="shb">Покупки</button><button id="plb">План</button><button id="rmb">Напоминания</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button><button class="l" id="thm" title="Тема оформления">🌓 Авто</button></nav>
 <div id="mn" hidden><button id="xl">⬇ Excel</button><button id="bk">Резервная копия</button><button id="rs">Восстановить</button><button id="lg">Журнал записей</button><button id="inst">📲 Установить</button><button id="lo">Выйти</button><input type="file" id="rsf" accept=".json,application/json" hidden></div>
 <div class="card" id="auth" hidden>
 <b style="font:600 19px 'Literata',Georgia,serif">Вход</b>
@@ -165,6 +165,7 @@ function status(g){
 function tips(g){
   const st=status(g),out=[],rem=g.target-cur(g),dl=daysLeft(g),e=entries(g);
   if(st.k==='done')return['Отметьте успех и поставьте следующую цель — чуть амбициознее.'];
+  if(isShort(g))return [`Осталось ${fmt(Math.max(0,rem))} ${esc(g.unit)} до конца периода.`].concat(subTips(g));
   if(dl>0){const w=Math.max(dl/7,1/7),per=Math.abs(rem)/w;out.push(`До срока ${dl} дн. Нужный темп: ${fmt(per)} ${esc(g.unit)} в неделю.`);
     if(g.cat==='weight'&&/кг|kg/i.test(g.unit)&&per>1)out.push('Темп выше ~1 кг в неделю — это тяжело и рискованно для здоровья. Лучше сдвиньте срок.');}
   const last=e.length?Math.floor((Date.now()-new Date(e[e.length-1].d))/864e5):Math.floor((Date.now()-new Date(g.created))/864e5);
@@ -189,6 +190,7 @@ function spark(g){
   return `<svg viewBox="0 0 300 44" preserveAspectRatio="none"><line x1="0" x2="300" y1="${ty}" y2="${ty}" stroke="var(--mut)" stroke-dasharray="3 3"/><polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map(xy).join(' ')}"/></svg>`;
 }
 function chart(g){
+  if(isShort(g))return shortChart(g);
   const W=480,H=180,L=44,R=14,T=18,B=24,e=entries(g),day=x=>new Date(String(x).slice(0,10)).getTime();
   const t0=day(g.created),t1=Math.max(day(g.deadline),t0+864e5),nw=Date.now();
   const vs=[g.start,g.target,...e.map(p=>p.v)],lo=Math.min(...vs),hi=Math.max(...vs),pd=(hi-lo)*.12||1,mn=lo-pd,mx=hi+pd;
@@ -230,11 +232,12 @@ function overview(){
   return `<div class="card ov"><svg viewBox="0 0 100 100" style="width:110px;height:110px"><circle r="40" cx="50" cy="50" fill="none" stroke="var(--ln)" stroke-width="12"/>${seg}<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="700" fill="var(--tx)">${avg}%</text></svg><div class="lg"><b>Средний прогресс · целей: ${n}</b>${Object.keys(col).filter(k=>c[k]).map(k=>`<div><i class="dot" style="background:var(${col[k]})"></i>${nm[k]}: ${c[k]}</div>`).join('')}</div></div>`;
 }
 function render(){
-  const L=$('#list');$('#qkc').hidden=!sample||!goals.length;$('#allb').className=mode==='all'?'p':'';$('#tdb').className=mode==='today'?'p':'';$('#wkb').className=mode==='week'?'p':'';$('#arb').className=mode==='arch'?'p':'';const pn=pending();$('#tdb').textContent='Сегодня'+(pn?' · '+pn:'');$('#shb').className=mode==='shop'?'p':'';$('#plb').className=mode==='plan'?'p':'';$('#rmb').className=mode==='rem'?'p':'';const tn=tasksDue().length,sn=tasks.filter(t=>kindOf(t)==='shop'&&!t.done).length;$('#rmb').textContent='Напоминания'+(tn?' · '+tn:'');$('#shb').textContent='Покупки'+(sn?' · '+sn:'');
-  if(!goals.length&&!['shop','plan','rem'].includes(mode)){L.innerHTML='<div class="empty">Целей пока нет. Нажмите «Новая цель» и опишите её по методу SMART.</div>';return}
+  const L=$('#list');$('#qkc').hidden=!sample||!goals.length;$('#allb').className=mode==='all'?'p':'';$('#tdb').className=mode==='today'?'p':'';$('#wkb').className=mode==='week'?'p':'';$('#arb').className=mode==='arch'?'p':'';const pn=pending();$('#tdb').textContent='Сегодня'+(pn?' · '+pn:'');$('#fdb').className=mode==='food'?'p':'';$('#shb').className=mode==='shop'?'p':'';$('#plb').className=mode==='plan'?'p':'';$('#rmb').className=mode==='rem'?'p':'';const tn=tasksDue().length,sn=tasks.filter(t=>kindOf(t)==='shop'&&!t.done).length;$('#rmb').textContent='Напоминания'+(tn?' · '+tn:'');$('#shb').textContent='Покупки'+(sn?' · '+sn:'');
+  if(!goals.length&&!['shop','plan','rem','food'].includes(mode)){L.innerHTML='<div class="empty">Целей пока нет. Нажмите «Новая цель» и опишите её по методу SMART.</div>';return}
   const order={warn:0,bad:0,ok:1,done:2};
   const gs=goals.filter(g=>mode==='arch'?g.archived:!g.archived).sort((a,b)=>order[status(a).k]-order[status(b).k]);
   if(mode==='today'){L.innerHTML=remBanner()+todayHTML();return}
+  if(mode==='food'){L.innerHTML=foodHTML();return}
   if(mode==='shop'){L.innerHTML=shopHTML();return}
   if(mode==='plan'){L.innerHTML=planHTML();return}
   if(mode==='rem'){L.innerHTML=remHTML();return}
@@ -275,6 +278,7 @@ $('#list').onclick=async ev=>{
   if(a!=='del'&&pendingDel){pendingDel=null}
   if(a==='edit')openForm(g);
   else if(a==='arch'||a==='unarch')await store.save({...g,archived:a==='arch'?iso(new Date()):null});
+  else if(a.startsWith('fd'))await foodAct(a,b);
   else if(a.startsWith('qk'))await quickAct(a,b,g);
   else if(a.startsWith('tk'))await taskAct(a,b);
   else if(a.startsWith('it'))await itemAct(a,b,g);
@@ -511,7 +515,7 @@ async function delRec(b,g){
 function logHTML(){
   const cards=goals.filter(g=>!g.archived).map(g=>{
     const sb=id=>(g.subs||[]).find(s=>s.id===id);
-    const it=[...(g.entries||[]).map((p,i)=>({k:'e',i,d:p.d,t:entryText(g,p)})),...(g.logs||[]).map((l,i)=>{const s=sb(l.s);return{k:'l',i,d:l.d,t:`${esc(s?s.name:'—')}: ${s&&s.kind==='chk'?'отмечено':fmt(l.v)}`}})].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,40);
+    const it=[...(g.entries||[]).map((p,i)=>({k:'e',i,d:p.d,t:entryText(g,p)})),...(g.logs||[]).map((l,i)=>{const s=sb(l.s);return{k:'l',i,d:l.d,t:`${esc(s?s.name:'—')}: ${s&&s.kind==='chk'?'отмечено':fmt(l.v)}${l.n?' · '+esc(l.n):''}`}})].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,40);
     return `<div class='card' data-cat='${esc(g.cat)}' data-id='${esc(g.id)}'><div class='bd'><b>${esc(g.title)}</b><span class='tag'>последние записи</span></div>${it.length?it.map(x=>`<div class='row2'><div>${x.d} · ${x.t}</div><button class='l' data-act='delrec' data-k='${x.k}' data-i='${x.i}'>✕</button></div>`).join(''):"<div class='tag' style='margin-top:8px'>Записей пока нет.</div>"}</div>`;
   }).join('');
   return `<div class='sec'>Журнал записей · удаляйте ошибочные</div>${cards}`;
@@ -799,7 +803,7 @@ $('#list').addEventListener('keydown',e=>{
   const b=e.target.closest('.card').querySelector("[data-act='tkadd'],[data-act='itadd'],[data-act='tklist'],[data-act='qkgen']");
   if(b){e.preventDefault();b.click()}
 });
-{const h=location.hash.slice(1);if(['today','week','arch','shop','plan','rem'].includes(h))mode=h}
+{const h=location.hash.slice(1);if(['today','week','arch','shop','plan','rem','food'].includes(h))mode=h}
 const isAdd=g=>g.inc?g.inc==='add':g.cat==='money';
 function addAt(g,d,v){
   const S=entries(g),prev=S.filter(x=>x.d<=d).pop(),base=prev?prev.v:g.start;
@@ -833,7 +837,7 @@ function quickPanel(){
   const add=act.filter(g=>isAdd(g)&&g.mode!=='items');
   const form=add.length?`<div class='ci'><select data-qg style='width:auto;max-width:220px'>${add.map(g=>`<option value='${esc(g.id)}'>${esc(g.title)}</option>`).join('')}</select><input type='number' step='any' data-qv placeholder='Сумма или количество' style='width:170px'><button class='p' data-act='qkgen'>Добавить</button></div>`:'';
   if(!rows&&!form)return'';
-  return `<div class='card'><div class='bd'><b>⚡ Быстрое добавление</b></div>${rows}${form}</div>`;
+  return `<div class='card'><div class='bd'><b>⚡ Быстрое добавление</b></div>${rows}${form}${calSubs().length?`<div class='ci'><button data-act='fdgo'>🍽 Посчитать калории по еде</button></div>`:''}</div>`;
 }
 async function quickAct(a,b,g){
   const d=iso(new Date()),c=b.closest('.card');let ng=null;
@@ -883,6 +887,324 @@ $('#inst').onclick=()=>{
   if(deferredInstall){deferredInstall.prompt();deferredInstall=null;return}
   alert('Как установить приложение:\n• iPhone (Safari): кнопка «Поделиться» → «На экран Домой».\n• Android (Chrome): меню ⋮ → «Установить приложение».\n• Компьютер (Chrome или Edge): значок установки в адресной строке.');
 };
+const FOOD_RAW=`гречк|греча~Гречка варёная~110~150
+рис$~Рис варёный~130~150
+рисовая каш|каша рисов~Рисовая каша~120~250
+макарон|паста|спагетти|лапш~Макароны варёные~130~180
+овсянк|овсяная каш~Овсяная каша на воде~90~250
+овсянка на молок|овсяная каша на молок~Овсяная каша на молоке~105~250
+овсяные хлопья|хлопья овсян~Овсяные хлопья сухие~350~40
+пшен~Пшённая каша~90~200
+перловк~Перловка варёная~110~200
+булгур|кускус~Булгур, кускус~115~150
+манн~Манная каша~98~250
+пюре|картофельное пюре~Картофельное пюре~106~200
+жареная картош|картошка жарен|жареный картоф~Картофель жареный~190~200
+картофель фри|картошка фри~Картофель фри~312~110
+картофел|картошк~Картофель варёный~82~150
+мюсли|гранол~Мюсли, гранола~400~50
+хлеб черн|хлеб ржан|бородинск~Хлеб ржаной~210~25~sl=25
+хлеб|батон|тост~Хлеб, батон~250~25~sl=25
+хлебц~Хлебцы~320~10
+лаваш~Лаваш~236~80
+булочк|булка|сдоб~Булочка сдобная~300~80
+круассан~Круассан~406~60
+пицц~Пицца~270~110~sl=110
+блин|блинчик|оладь~Блины~230~50~pc=50
+сырник~Сырники~220~60~pc=60
+пельмен~Пельмени варёные~250~200~pc=15
+вареник~Вареники~190~200~pc=40
+пирожок|пирожк~Пирожок~290~80
+бутерброд с колбас~Бутерброд с колбасой~280~90
+бутерброд~Бутерброд с сыром~300~80
+печенье~Печенье~430~12~pc=12
+овсяное печенье~Печенье овсяное~437~15~pc=15
+вафл~Вафли~530~20
+шоколадная паст|нутелл~Шоколадная паста~540~20~sp=20
+шоколад~Шоколад молочный~540~30~sl=10
+конфет~Конфета шоколадная~480~15~pc=15
+мороженое|пломбир|эскимо~Мороженое~230~100
+торт|пирожное~Торт, пирожное~400~120
+пряник~Пряник~350~40
+зефир|пастил|мармелад~Зефир, мармелад~300~30
+мед$|меда$~Мёд~330~20~sp=21
+варенье|джем|повидл~Варенье, джем~260~30~sp=30
+сахар~Сахар~400~8~sp=25
+куриная грудк|грудк|филе курин~Куриная грудка варёная~137~150
+курица|жареная курица~Курица жареная~240~150
+куриное бедр|окорочок|окорочк|голень~Куриное бедро, голень~200~120
+крыль|крылышк~Куриные крылья~230~100
+индейк~Индейка~150~150
+говядина тушен~Говядина тушёная~230~150
+говядин~Говядина варёная~250~150
+свинин~Свинина жареная~330~150
+фарш~Фарш жареный~250~100
+котлет~Котлета~240~80~pc=80
+сосиск~Сосиски~270~50~pc=50
+сардельк~Сардельки~300~80~pc=80
+колбаса копч|сырокопч~Колбаса копчёная~450~15~sl=15
+колбас~Колбаса варёная~260~20~sl=20
+ветчин~Ветчина~200~20~sl=20
+бекон~Бекон~500~12~sl=12
+печенк|печень~Печень тушёная~160~100
+шашлык~Шашлык~320~150
+лосос|семг|форел~Лосось, сёмга~200~120
+тунец~Тунец консервированный~130~100
+сельд|селедк~Сельдь~250~80
+скумбри~Скумбрия~260~100
+треск|минта|хек~Белая рыба~80~150
+кальмар~Кальмар~100~100
+креветк~Креветки варёные~95~100
+рыбные палочк|рыбные пальц~Рыбные палочки~220~140~pc=28
+шпрот~Шпроты~360~50
+сардин~Сардины~210~100
+яичниц~Яичница~200~120
+омлет~Омлет~180~150
+яйц~Яйцо варёное~157~50~pc=50
+молок~Молоко 3,2%~60~250
+кефир~Кефир 2,5%~53~250
+йогурт~Йогурт~70~125
+творог обезжир~Творог обезжиренный~88~150
+творог~Творог 5%~121~150
+сметан~Сметана 20%~205~20~sp=20
+сливк~Сливки 10%~118~50
+сыр плавлен~Сыр плавленый~280~20~sl=20
+сыр$|сыры$~Сыр твёрдый~360~20~sl=20
+моцарелл~Моцарелла~250~100
+брынз|фет$~Брынза, фета~260~50
+масло сливочн|сливочное масло|масло слив~Масло сливочное~748~10~sp=15,sl=10
+сгущ~Сгущёнка~320~30~sp=30
+ряженк|простокваш~Ряженка~55~250
+сырок~Сырок глазированный~400~45~pc=45
+огурц~Огурец~15~100~pc=100
+помидор|томат~Помидор~20~100~pc=100
+перец~Болгарский перец~27~120~pc=120
+морков~Морковь~35~80~pc=80
+капуста тушен~Капуста тушёная~75~200
+капуст~Капуста белая~28~100
+цветная капуст~Цветная капуста~30~100
+брокколи~Брокколи~34~100
+свекл~Свёкла варёная~49~100
+лук$~Лук репчатый~41~80~pc=80
+чеснок~Чеснок~143~4~pc=4
+баклажан~Баклажан~24~150
+кабачок|кабачк~Кабачок~24~150
+тыкв~Тыква~28~150
+шпинат~Шпинат~22~50
+редис~Редис~20~50
+зелен|укроп|петрушк~Зелень~40~20
+кукуруз~Кукуруза консервированная~119~100
+горошек~Горошек консервированный~55~100
+фасоль~Фасоль варёная~120~150
+чечевиц~Чечевица варёная~116~150
+нут$~Нут варёный~164~150
+гриб|шампиньон~Грибы~27~100
+оливк|маслин~Оливки~115~30~pc=4
+салат|овощной салат|салат из овощ~Овощной салат с маслом~70~200
+оливье~Салат оливье~195~200
+цезарь~Салат Цезарь~180~200
+греческий~Греческий салат~100~200
+винегрет~Винегрет~130~200
+шуб~Сельдь под шубой~190~200
+борщ~Борщ~50~300
+щи$~Щи~40~300
+суп курин|куриный суп~Суп куриный~45~300
+суп гороховый|гороховый суп~Суп гороховый~66~300
+солянк~Солянка~90~300
+уха$~Уха~45~300
+суп$~Суп овощной~40~300
+плов~Плов~190~250
+яблок~Яблоко~47~150~pc=150
+банан~Банан~96~120~pc=120
+апельсин~Апельсин~43~150~pc=150
+мандарин~Мандарин~38~70~pc=70
+груш~Груша~42~150~pc=150
+виноград~Виноград~70~100~h=80
+клубник|земляник~Клубника~33~100
+малин~Малина~46~100
+черник|голубик|смородин|ягод~Ягоды~45~100~h=70
+арбуз~Арбуз~27~300~sl=300
+дыня|дыни|дыню~Дыня~33~200~sl=200
+персик~Персик~45~120~pc=120
+абрикос~Абрикос~44~40~pc=40
+слива|сливы|сливу~Слива~49~35~pc=35
+киви~Киви~47~75~pc=75
+ананас~Ананас~49~100
+хурм~Хурма~67~150~pc=150
+гранат~Гранат~72~100
+лимон~Лимон~29~60~pc=60
+авокадо~Авокадо~160~150~pc=150
+курага~Курага~232~30~h=40
+изюм~Изюм~270~30~h=40
+финик~Финики~280~8~pc=8
+чернослив~Чернослив~240~10~pc=10
+грецк~Грецкие орехи~650~30~h=30
+миндал~Миндаль~610~30~h=30
+арахисовая паст~Арахисовая паста~600~16~sp=16
+арахис~Арахис~550~30~h=30
+фундук~Фундук~650~30~h=30
+кешью~Кешью~600~30~h=30
+орех~Орехи~650~30~h=30
+семечк~Семечки~580~30~h=30
+вода|воды|воду~Вода~0~250
+чай~Чай без сахара~1~250
+чай с сахар~Чай с сахаром~13~250
+кофе с молок~Кофе с молоком~30~200
+кофе с сахар~Кофе с сахаром~13~200
+кофе|эспрессо|американо~Кофе чёрный~2~200
+капучино~Капучино~45~250
+латте~Латте~55~250
+какао~Какао на молоке~80~250
+сок~Сок фруктовый~46~250
+компот|морс|кисель~Компот, морс~55~250
+кола|кока|пепси|газировк|лимонад|фанта|спрайт~Газировка сладкая~42~330
+пиво~Пиво~43~500~c=500
+вино|вина|вину~Вино~85~150~c=150
+шампанск~Шампанское~85~150~c=150
+водк|коньяк|виски|ром$|джин|текил~Крепкий алкоголь~235~50~c=50
+молочный коктейл|коктейл~Молочный коктейль~90~250
+смузи~Смузи~60~250
+бургер|гамбургер|чизбургер~Бургер~260~200
+шаурм|шаверм~Шаурма~230~300
+хот дог|хотдог~Хот-дог~290~150
+наггетс~Наггетсы~280~120~pc=20
+ролл|суши~Суши, роллы~140~180~pc=30
+чипс~Чипсы~520~50
+сухарик~Сухарики~430~40
+масло подсолн|подсолнечн|растительное масло|масло раст|масло оливк~Растительное масло~899~15~sp=15
+майонез~Майонез~620~25~sp=25
+кетчуп~Кетчуп~100~20~sp=20
+соевый соус|соус соев~Соевый соус~60~15~sp=15
+хумус~Хумус~230~15~sp=15
+батончик~Протеиновый батончик~380~50
+тофу~Тофу~76~100`;
+const FOODS=FOOD_RAW.split('\n').filter(Boolean).map(l=>{const [a,n,k,p,o]=l.split('~'),f={a:a.split('|'),n,k:+k,p:+p||0};(o||'').split(',').forEach(x=>{const [kk,vv]=x.split('=');if(kk)f[kk]=+vv});return f});
+const nrm=t=>(t||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9.,/%\s-]/g,' ').replace(/-/g,' ').replace(/\s+/g,' ').trim();
+function aliasRe(a){const w=a.endsWith('$'),b=w?a.slice(0,-1):a,e=b.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return new RegExp('(^|[^а-яa-z0-9])'+e+(w?'(?![а-яa-z0-9])':''))}
+const customFoods=()=>lists.filter(l=>l.kind==='food'&&l.name).map(l=>({n:l.name,k:+l.k||0,p:+l.p||0,r:[[nrm(l.name),aliasRe(nrm(l.name))]],bonus:100}));
+function findFood(t){
+  let best=null,bs=0;
+  for(const f of [...customFoods(),...FOODS]){
+    const rs=f.r||(f.r=f.a.map(x=>[x,aliasRe(x)]));
+    for(const [a,re] of rs){if(re.test(t)){const sc=a.replace('$','').length+(f.bonus||0);if(sc>bs){bs=sc;best=f}}}
+  }
+  return best;
+}
+const N='(\\d+(?:\\.\\d+)?)';
+const QPATS=[
+  [new RegExp(N+'\\s*(?:кг|килограмм[а-я]*)'),'kg'],
+  [new RegExp(N+'\\s*(?:мл|миллилитр[а-я]*)'),'ml'],
+  [new RegExp(N+'\\s*(?:л|литр[а-я]*)(?![а-я])'),'l'],
+  [new RegExp(N+'\\s*(?:г|гр|грамм[а-я]*)(?![а-я])'),'g'],
+  [new RegExp(N+'?\\s*(?:ст\\.?\\s?л(?![а-я])\\.?|столов[а-я]+\\s+ложк[а-я]*)'),'tbsp'],
+  [new RegExp(N+'?\\s*(?:ч\\.?\\s?л(?![а-я])\\.?|чайн[а-я]+\\s+ложк[а-я]*)'),'tsp'],
+  [new RegExp(N+'?\\s*ложк[а-я]*'),'tbsp'],
+  [new RegExp(N+'?\\s*(?:стакан[а-я]*|чашк[а-я]*|кружк[а-я]*)'),'cup'],
+  [new RegExp(N+'?\\s*бокал[а-я]*'),'glass'],
+  [new RegExp(N+'?\\s*рюмк[а-я]*'),'shot'],
+  [new RegExp(N+'?\\s*горст[а-я]*|'+N+'?\\s*горсть'),'hand'],
+  [new RegExp(N+'?\\s*(?:ломтик[а-я]*|кусоч[а-я]*|куск[а-я]*|кусок|дольк[а-я]*|долек)'),'slice'],
+  [new RegExp(N+'?\\s*(?:порци[а-я]*|тарелк[а-я]*|миск[а-я]*)'),'portion'],
+  [new RegExp(N+'?\\s*(?:штук[а-я]*|шт(?![а-я])\\.?)'),'pc']
+];
+function parsePart(raw){
+  let t=nrm(raw).replace(/(\d+)\/(\d+)/g,(m,a,b)=>String(+a/+b)).replace(/(\d),(\d)/g,'$1.$2'),m;
+  if(m=t.match(new RegExp(N+'\\s*(?:ккал|kcal|кал)(?![а-я])')))return{raw:raw.trim(),name:t.replace(m[0],' ').trim()||raw.trim(),kcal:Math.round(+m[1]),direct:true};
+  for(const [re,u] of QPATS){m=t.match(re);if(m){const q=+(m[1]||m[2]||1);return{name:t.replace(m[0],' ').replace(/\s+/g,' ').trim(),q,u}}}
+  m=t.match(new RegExp(N));
+  if(m)return{name:t.replace(m[0],' ').replace(/\s+/g,' ').trim(),q:+m[1],u:'plain'};
+  return{name:t,q:1,u:'one'};
+}
+function gramsOf(f,q,u){
+  const p=f.p||100,pc=f.pc||0;
+  switch(u){
+    case 'g':case 'ml':return q;
+    case 'kg':case 'l':return q*1000;
+    case 'tbsp':return q*(f.sp||15);
+    case 'tsp':return q*((f.sp||15)/3);
+    case 'cup':return q*(f.c||250);
+    case 'glass':return q*(f.c&&f.c<=200?f.c:150);
+    case 'shot':return q*50;
+    case 'hand':return q*(f.h||30);
+    case 'slice':return q*(f.sl||(p<=60?p:30));
+    case 'portion':return q*p;
+    case 'pc':return q*(pc||p);
+    case 'plain':return (pc&&q<=30)?q*pc:(q<=5?q*p:q);
+    default:return q*p;
+  }
+}
+function calcFood(text){
+  return text.split(/[;\n+]+|,(?!\d)|\s+и\s+|\s+плюс\s+/).map(x=>x.trim()).filter(Boolean).map(raw=>{
+    const pp=parsePart(raw);
+    if(pp.direct)return pp;
+    const f=findFood(pp.name);
+    if(!f)return{raw,name:raw,kcal:null,miss:true};
+    const g=gramsOf(f,pp.q,pp.u);
+    return{raw,name:f.n,k:f.k,g:Math.round(g),kcal:Math.round(g*f.k/100)};
+  });
+}
+const foodTotal=()=>(foodState.items||[]).reduce((a,i)=>a+(+i.kcal||0),0);
+let foodState={text:'',items:null,sel:'',date:''};
+function calSubs(){const o=[];goals.filter(g=>!g.archived).forEach(g=>(g.subs||[]).forEach(s=>{if(s.kind!=='chk'&&/ккал|kcal|кал/i.test(s.unit||''))o.push({g,s})}));return o}
+function foodHTML(){
+  const cs=calSubs(),td=iso(new Date());if(!foodState.date)foodState.date=td;
+  const key=x=>x.g.id+'|'+x.s.id,sel=cs.find(x=>key(x)===foodState.sel)?foodState.sel:(cs[0]?key(cs[0]):''),cur=cs.find(x=>key(x)===sel);
+  let sum='',meals='';
+  if(cur){
+    const t=dayTotal(cur.g,cur.s.id,td),n=cur.s.norm,over=n&&cur.s.kind!=='min'&&t>n;
+    sum=`<div class='tag' style='margin:6px 0'>Сегодня: <b>${fmt(t)}</b> ккал${n?` из ${cur.s.kind==='min'?'≥':'≤'} ${fmt(n)} · ${over?'перебор '+fmt(t-n):'осталось '+fmt(Math.max(0,n-t))}`:''}</div>${n?`<div class='bar'><i style='width:${Math.min(100,t/n*100)}%;background:${over?'var(--bad)':'var(--ac)'}'></i></div>`:''}`;
+    const ml=(cur.g.logs||[]).map((l,i)=>({l,i})).filter(x=>x.l.s===cur.s.id&&x.l.d===td);
+    meals=`<div class='card'><div class='bd'><b>Сегодня съедено</b><span class='tag'>${fmt(t)} ккал</span></div>${ml.map(x=>`<div class='row2' style='align-items:center'><div>${esc(x.l.n||'без описания')}</div><div style='white-space:nowrap'><b>${fmt(x.l.v)}</b> ккал <button class='l' data-act='fddel' data-g='${esc(cur.g.id)}' data-i='${x.i}'>✕</button></div></div>`).join('')||"<div class='tag' style='margin-top:8px'>Пока ничего не записано</div>"}</div>`;
+  }
+  const opts=cs.map(x=>`<option value='${esc(key(x))}'${key(x)===sel?' selected':''}>${esc(x.g.title)} · ${esc(x.s.name)}</option>`).join('');
+  const it=foodState.items;
+  const rows=it?it.map((x,i)=>{
+    if(x.miss)return `<div class='row2' style='align-items:center'><div style='flex:1'>«${esc(x.raw)}»<div class='tag bad'>Не нашёл в базе. Введите ккал или добавьте продукт ниже.</div></div><input type='number' data-fk data-i='${i}' placeholder='ккал' style='width:90px'><button class='l' data-act='fdrm' data-i='${i}'>✕</button></div>`;
+    if(x.direct)return `<div class='row2' style='align-items:center'><div style='flex:1'>${esc(x.name)}</div><input type='number' data-fk data-i='${i}' value='${x.kcal}' style='width:90px'> ккал<button class='l' data-act='fdrm' data-i='${i}'>✕</button></div>`;
+    return `<div class='row2' style='align-items:center'><div style='flex:1'>${esc(x.name)}<div class='tag'>«${esc(x.raw)}» · ${x.k} ккал/100 г</div></div><input type='number' data-fg data-i='${i}' value='${x.g}' style='width:76px'> г<b id='fk${i}' style='min-width:70px;text-align:right'>${x.kcal} ккал</b><button class='l' data-act='fdrm' data-i='${i}'>✕</button></div>`;
+  }).join(''):'';
+  const res=it?(it.length?`${rows}<div class='row2' style='font-size:17px'><div id='fdtot'>Итого: <b>${fmt(foodTotal())} ккал</b></div><div></div></div><div class='ci'>${cs.length?`<button class='p' data-act='fdsave'>Добавить в дневник</button>`:''}<button class='l' data-act='fdclear'>Очистить</button></div><div class='tag'>Значения примерные: граммы можно поправить в строке.</div>`:"<div class='tag' style='margin-top:8px'>Ничего не распознано. Напишите, например: «гречка 200 г, 2 яйца».</div>"):'';
+  const calc=`<div class='card'><div class='bd'><b>🍽 Что вы съели?</b></div>${cs.length?`<div class='ci'><select data-fsub style='width:auto;max-width:100%'>${opts}</select><input type='date' data-fd value='${esc(foodState.date)}'></div>${sum}`:`<div class='tag' style='margin:6px 0'>Чтобы сохранять калории, создайте цель с подкатегорией в «ккал» (шаблон «Снизить вес»). Считать можно и без неё.</div>`}<textarea data-ft rows='3' placeholder='Например: гречка 200 г, 2 яйца, кофе с молоком, пицца 2 куска, шоколадка 300 ккал' style='margin-top:8px'>${esc(foodState.text)}</textarea><div class='ci'><button class='p' data-act='fdcalc'>Посчитать</button></div>${res}</div>`;
+  const cf=lists.filter(l=>l.kind==='food');
+  const mine=`<div class='card'><div class='bd'><b>Мои продукты</b><span class='tag'>${cf.length}</span></div><div class='tag' style='margin:6px 0'>Своё блюдо или продукт с упаковки: программа будет находить его по названию.</div>${cf.map(l=>`<div class='row2' style='align-items:center'><div>${esc(l.name)} <span class='tag'>· ${fmt(l.k)} ккал/100 г${l.p?' · порция '+fmt(l.p)+' г':''}</span></div><button class='l' data-act='fddelfood' data-id='${esc(l.id)}'>✕</button></div>`).join('')}<div class='ci'><input data-nn placeholder='Название' style='flex:1;width:auto;min-width:130px'><input type='number' step='any' data-nk placeholder='ккал на 100 г' style='width:120px'><input type='number' step='any' data-np placeholder='порция, г' style='width:100px'><button class='p' data-act='fdaddfood'>Добавить</button></div></div>`;
+  return `<div class='sec'>Еда и калории</div>${calc}${meals}${mine}`;
+}
+async function foodAct(a,b){
+  const c=b.closest('.card'),i=+b.dataset.i,q=s=>{const e=c&&c.querySelector(s);return e?e.value:''};
+  if(a==='fdgo'){setMode('food');return}
+  if(a==='fdcalc'){foodState.text=q('[data-ft]');foodState.sel=q('[data-fsub]')||foodState.sel;foodState.date=q('[data-fd]')||foodState.date;foodState.items=calcFood(foodState.text);render()}
+  else if(a==='fdrm'){foodState.items.splice(i,1);render()}
+  else if(a==='fdclear'){foodState.items=null;foodState.text='';render()}
+  else if(a==='fdsave'){
+    const [gid,sid]=(q('[data-fsub]')||foodState.sel).split('|'),g=goals.find(x=>x.id===gid),d=q('[data-fd]')||iso(new Date()),total=Math.round(foodTotal());
+    if(!g||!sid||total<=0)return;
+    const note=(foodState.items||[]).map(x=>x.raw).join(', ').slice(0,140);
+    await store.save({...g,logs:[...(g.logs||[]),{s:sid,d,v:total,n:note}]});
+    foodState.items=null;foodState.text='';setSync('✓ Добавлено '+fmt(total)+' ккал');render();
+  }
+  else if(a==='fddel'){const g=goals.find(x=>x.id===b.dataset.g);if(g)await store.save({...g,logs:(g.logs||[]).filter((_,j)=>j!==i)})}
+  else if(a==='fdaddfood'){const n=q('[data-nn]').trim(),k=parseFloat(q('[data-nk]'));if(!n||isNaN(k))return;await saveL({id:'food_'+Date.now().toString(36),type:'list',kind:'food',name:n,k,p:parseFloat(q('[data-np]'))||0})}
+  else if(a==='fddelfood')await delL(b.dataset.id);
+}
+$('#fdb').onclick=()=>setMode('food');
+$('#list').addEventListener('input',e=>{
+  const t=e.target;if(!t.matches)return;
+  if(t.matches('[data-ft]'))foodState.text=t.value;
+  else if(t.matches('[data-fsub]'))foodState.sel=t.value;
+  else if(t.matches('[data-fd]'))foodState.date=t.value;
+  else if(t.matches('[data-fg],[data-fk]')){
+    const x=foodState.items&&foodState.items[+t.dataset.i];if(!x)return;
+    if(t.matches('[data-fg]')){x.g=+t.value||0;x.kcal=Math.round(x.g*x.k/100);const el=document.querySelector('#fk'+t.dataset.i);if(el)el.textContent=x.kcal+' ккал'}
+    else x.kcal=+t.value||0;
+    const tot=document.querySelector('#fdtot');if(tot)tot.innerHTML='Итого: <b>'+fmt(foodTotal())+' ккал</b>';
+  }
+});
+const isShort=g=>g.repeat==='day'||(new Date(g.deadline)-new Date(g.created.slice(0,10)))/864e5<=1;
+function shortChart(g){
+  const p=pct(g),h=(g.history||[]).slice(-14),w=h.length*22+8;
+  const bars=h.map((x,i)=>{const v=Math.min(100,x.p),bh=Math.max(2,v*.46);return `<rect x='${i*22+4}' y='${50-bh}' width='16' height='${bh}' rx='4' fill='${x.p>=100?'var(--ok)':'var(--ac)'}' opacity='${x.p>=100?1:.55}'><title>${x.to}: ${x.p}%</title></rect>`}).join('');
+  return `<div class='tag' style='margin-top:12px'>Сегодня: ${fmt(cur(g))} из ${fmt(g.target)} ${esc(g.unit)}</div><div class='bar'><i style='width:${p}%'></i></div>${h.length?`<div class='tag' style='margin-top:12px'>Прошлые периоды (зелёный: цель выполнена)</div><svg class='ch' style='width:${w}px;max-width:100%' viewBox='0 0 ${w} 56'><line x1='0' x2='${w}' y1='4' y2='4' stroke='var(--ok)' stroke-dasharray='3 3'/>${bars}</svg>`:''}`;
+}
 async function init(){
   render();
   if(!window.supabase||SUPABASE_URL.indexOf('ВСТАВЬТЕ')===0){startLocal('Только на этом устройстве: не настроен Supabase');return}
