@@ -519,8 +519,8 @@ $('#f_tpl').onchange=e=>{
   v('title',t.t);v('cat',t.cat);v('unit',t.u);v('start',t.start);v('target',t.target);v('dl',iso(new Date(Date.now()+t.days*864e5)));v('rep',t.rep||'');v('s',t.s);
   fsubs=t.subs.map((s,i)=>({...s,id:'s'+Date.now().toString(36)+i}));drawSubs();
 };
-const SUPABASE_URL='ВСТАВЬТЕ_PROJECT_URL';
-const SUPABASE_KEY='ВСТАВЬТЕ_ANON_KEY';
+const SUPABASE_URL='https://yylmjgzqgsatjstoodhi.supabase.co';
+const SUPABASE_KEY='sb_publishable_uFstBNR9uKC8xd85w4-n4Q_UtBs9Vun';
 let sb=null,uid=null;
 function showAuth(msg){$('#auth').hidden=false;$('#list').hidden=true;$('#authm').textContent=msg||''}
 async function loadAll(){
