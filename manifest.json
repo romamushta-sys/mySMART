@@ -1,0 +1,20 @@
+{
+  "name": "Мои цели",
+  "short_name": "Цели",
+  "description": "SMART-цели, списки покупок, план задач и напоминания",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3ede2",
+  "theme_color": "#1f5c4d",
+  "lang": "ru",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Покупки", "url": "./#shop" },
+    { "name": "Напоминания", "url": "./#rem" },
+    { "name": "План", "url": "./#plan" }
+  ]
+}

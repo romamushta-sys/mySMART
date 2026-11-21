@@ -4,6 +4,11 @@
 <title>SMART-цели</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🎯%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f5c4d">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <script>try{var _t=localStorage.getItem("smart_theme");if(_t)document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -97,13 +102,15 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 <body><main>
 <header><h1>Мои цели<small>SMART</small></h1><span><span class="sync" id="sync">Подключение…</span> <button class="p" id="add">+ Новая цель</button></span></header>
 <nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="shb">Покупки</button><button id="plb">План</button><button id="rmb">Напоминания</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button><button class="l" id="thm" title="Тема оформления">🌓 Авто</button></nav>
-<div id="mn" hidden><button id="xl">⬇ Excel</button><button id="bk">Резервная копия</button><button id="rs">Восстановить</button><button id="lg">Журнал записей</button><button id="lo">Выйти</button><input type="file" id="rsf" accept=".json,application/json" hidden></div>
+<div id="mn" hidden><button id="xl">⬇ Excel</button><button id="bk">Резервная копия</button><button id="rs">Восстановить</button><button id="lg">Журнал записей</button><button id="inst">📲 Установить</button><button id="lo">Выйти</button><input type="file" id="rsf" accept=".json,application/json" hidden></div>
 <div class="card" id="auth" hidden>
 <b style="font:600 19px 'Literata',Georgia,serif">Вход</b>
 <div class="tag" style="margin:6px 0">Цели хранятся в вашем аккаунте и синхронизируются между устройствами.</div>
+<div id="authform">
 <label>Email<input id="em" type="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
 <label>Пароль (не короче 6 символов)<input id="pw" type="password" autocomplete="current-password"></label>
-<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="p" id="login">Войти</button><button id="signup">Регистрация</button></div>
+<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="p" id="login">Войти</button><button id="signup">Регистрация</button><button class="l" id="forgot">Забыли пароль?</button></div></div>
+<div id="recov" hidden><label>Новый пароль (не короче 6 символов)<input id="np" type="password" autocomplete="new-password"></label><div style="margin-top:12px"><button class="p" id="npb">Сохранить пароль</button></div></div>
 <div class="tag" id="authm" style="margin-top:8px;color:var(--bad)"></div></div>
 <div class="card" id="qkc" hidden><div class="ci" style="margin:0"><input id="qk" style="flex:1;width:auto;min-width:200px" placeholder="Быстрый ввод: «съел 450 ккал», «был в зале»"><button class="p" id="qkb">Записать</button></div><div class="tag" id="qkm" style="margin-top:6px"></div></div>
 <form id="form" class="card" hidden onsubmit="return false">
@@ -538,30 +545,56 @@ const SUPABASE_URL=(window.SB_CFG&&window.SB_CFG.url)||'ВСТАВЬТЕ_PROJECT
 const SUPABASE_KEY=(window.SB_CFG&&window.SB_CFG.key)||'ВСТАВЬТЕ_ANON_KEY';
 let sb=null,uid=null;
 function showAuth(msg){$('#auth').hidden=false;$('#list').hidden=true;$('#authm').textContent=msg||''}
+const getQ=()=>{try{return JSON.parse(localStorage.getItem('smart_queue')||'[]')}catch(e){return[]}};
+const setQ=q=>{try{localStorage.setItem('smart_queue',JSON.stringify(q))}catch(e){}};
+const isNet=e=>!navigator.onLine||/fetch|network|load failed|timeout/i.test((e&&e.message)||String(e||''));
+function cacheAll(){try{localStorage.setItem('smart_cache_'+uid,JSON.stringify({goals,tasks,lists}))}catch(e){}}
+function enqueue(o){setQ([...getQ().filter(x=>x.id!==o.id),o])}
+function runOp(o){
+  return o.op==='up'?sb.from('goals').upsert({user_id:uid,id:o.id,data:o.row,updated_at:new Date().toISOString()},{onConflict:'user_id,id'}):sb.from('goals').delete().eq('id',o.id);
+}
+async function doOp(o){
+  cacheAll();
+  if(!navigator.onLine){enqueue(o);setSync('Офлайн: сохранено на устройстве');return}
+  let r;try{r=await runOp(o)}catch(e){r={error:e}}
+  if(r.error){if(isNet(r.error)){enqueue(o);setSync('Нет связи: отправлю позже')}else setSync('Ошибка сохранения: '+r.error.message)}
+  else setSync('Синхронизировано ✓');
+}
+const syncRow=row=>doOp({op:'up',id:row.id,row});
+const syncDel=id=>doOp({op:'del',id});
+async function flushQ(){
+  const q=getQ();if(!q.length||!sb||!uid||!navigator.onLine)return;
+  const rest=[];
+  for(const o of q){let r;try{r=await runOp(o)}catch(e){r={error:e}}if(r.error&&isNet(r.error))rest.push(o)}
+  setQ(rest);
+}
+function loadCache(msg){
+  try{const c=JSON.parse(localStorage.getItem('smart_cache_'+uid)||'null');if(c){goals=c.goals||[];tasks=c.tasks||[];lists=c.lists||[]}}catch(e){}
+  setSync(msg);render();
+}
 async function loadAll(){
-  const {data,error}=await sb.from('goals').select('data');
-  if(error){setSync('Ошибка загрузки: '+error.message);return}
-  const all=(data||[]).map(r=>r.data);goals=all.filter(x=>x&&x.type!=='task'&&x.type!=='list');tasks=all.filter(x=>x&&x.type==='task');lists=all.filter(x=>x&&x.type==='list');setSync('Синхронизировано ✓');render();
+  try{await flushQ()}catch(e){}
+  if(!navigator.onLine){loadCache('Офлайн: данные с устройства');return}
+  if(getQ().length){loadCache('Есть неотправленные изменения, повторю позже');return}
+  let res;try{res=await sb.from('goals').select('data')}catch(e){res={error:e}}
+  if(res.error){loadCache(isNet(res.error)?'Нет связи: данные с устройства':'Ошибка загрузки: '+res.error.message);return}
+  const all=(res.data||[]).map(r=>r.data);
+  goals=all.filter(x=>x&&x.type!=='task'&&x.type!=='list');tasks=all.filter(x=>x&&x.type==='task');lists=all.filter(x=>x&&x.type==='list');
+  cacheAll();setSync('Синхронизировано ✓');render();
   goals.slice().forEach(g=>{const r=rollover(g);if(r)store.save(r)});
 }
 async function startSynced(session){
   if(uid===session.user.id&&store)return;
   uid=session.user.id;$('#auth').hidden=true;$('#list').hidden=false;
   store={
-    save:async g=>{
-      const i=goals.findIndex(x=>x.id===g.id);i<0?goals.push(g):goals[i]=g;render();
-      const {error}=await sb.from('goals').upsert({user_id:uid,id:g.id,data:g,updated_at:new Date().toISOString()},{onConflict:'user_id,id'});
-      setSync(error?'Ошибка сохранения: '+error.message:'Синхронизировано ✓');
-    },
-    del:async id=>{
-      goals=goals.filter(x=>x.id!==id);render();
-      const {error}=await sb.from('goals').delete().eq('id',id);
-      setSync(error?'Ошибка удаления: '+error.message:'Синхронизировано ✓');
-    }
+    save:async g=>{const i=goals.findIndex(x=>x.id===g.id);i<0?goals.push(g):goals[i]=g;render();await syncRow(g)},
+    del:async id=>{goals=goals.filter(x=>x.id!==id);render();await syncDel(id)}
   };
   await loadAll();
   sb.channel('goals-'+uid).on('postgres_changes',{event:'*',schema:'public',table:'goals'},()=>loadAll()).subscribe();
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&store)loadAll()});
+  window.addEventListener('online',()=>{if(store)loadAll()});
+  window.addEventListener('offline',()=>setSync('Офлайн: изменения сохранятся на устройстве'));
 }
 function authErr(m,t){m.style.color='var(--bad)';m.textContent=t}
 async function doAuth(kind){
@@ -633,19 +666,17 @@ async function itemAct(a,b,g){
 }
 async function saveT(t){
   const i=tasks.findIndex(x=>x.id===t.id);i<0?tasks.push(t):tasks[i]=t;render();
-  if(sb&&uid){const {error}=await sb.from('goals').upsert({user_id:uid,id:t.id,data:t,updated_at:new Date().toISOString()},{onConflict:'user_id,id'});setSync(error?'Ошибка сохранения: '+error.message:'Синхронизировано ✓')}
-  else{try{localStorage.setItem('smart_tasks',JSON.stringify(tasks))}catch(e){}}
+  if(sb&&uid)await syncRow(t);else{try{localStorage.setItem('smart_tasks',JSON.stringify(tasks))}catch(e){}}
 }
 async function delT(id){
   tasks=tasks.filter(x=>x.id!==id);render();
-  if(sb&&uid){const {error}=await sb.from('goals').delete().eq('id',id);setSync(error?'Ошибка удаления: '+error.message:'Синхронизировано ✓')}
-  else{try{localStorage.setItem('smart_tasks',JSON.stringify(tasks))}catch(e){}}
+  if(sb&&uid)await syncDel(id);else{try{localStorage.setItem('smart_tasks',JSON.stringify(tasks))}catch(e){}}
 }
 const dueTs=t=>t.due?new Date(t.due+'T'+(t.time||'09:00')+':00').getTime():null;
 function tasksDue(){const end=new Date();end.setHours(23,59,59,999);return tasks.filter(t=>!t.done&&t.due&&dueTs(t)<=end.getTime()).sort((a,b)=>dueTs(a)-dueTs(b))}
 function taskRow(t,o={}){
   const od=t.due&&dueTs(t)<Date.now()&&!t.done,big=o.shop;
-  return `<div class='row2' style='align-items:center;padding:${big?10:6}px 0'><label style='display:flex;gap:10px;align-items:center;margin:0;color:var(--tx);flex:1;${big?'font-size:17px':''}'><input type='checkbox' style='width:${big?24:18}px;height:${big?24:18}px;margin:0;flex:none' ${t.done?'checked':''} data-act='tktog' data-t='${esc(t.id)}'><span style='${t.done?'text-decoration:line-through;color:var(--mut)':''}'>${t.pr?'❗ ':''}${esc(t.t)}${t.due?` <span class='tag ${od?'bad':''}'>${t.due.slice(8)}.${t.due.slice(5,7)}${t.time?' '+t.time:''}</span>`:''}${o.list?` <span class='tag'>· ${esc(t.list)}</span>`:''}</span></label>${t.due?`<button class='l' title='В календарь' data-act='tkics' data-t='${esc(t.id)}'>📅</button>`:''}<button class='l' data-act='tkdel' data-t='${esc(t.id)}'>✕</button></div>`;
+  return `<div class='row2' style='align-items:center;padding:${big?10:6}px 0'><label style='display:flex;gap:10px;align-items:center;margin:0;color:var(--tx);flex:1;${big?'font-size:17px':''}'><input type='checkbox' style='width:${big?24:18}px;height:${big?24:18}px;margin:0;flex:none' ${t.done?'checked':''} data-act='tktog' data-t='${esc(t.id)}'><span style='${t.done?'text-decoration:line-through;color:var(--mut)':''}'>${t.pr?'❗ ':''}${esc(t.t)}${t.p?` · ${fmt(t.p)} ₽`:''}${t.due?` <span class='tag ${od?'bad':''}'>${t.due.slice(8)}.${t.due.slice(5,7)}${t.time?' '+t.time:''}</span>`:''}${t.rec?' 🔁':''}${o.list?` <span class='tag'>· ${esc(t.list)}</span>`:''}</span></label>${t.due?`<button class='l' title='В календарь' data-act='tkics' data-t='${esc(t.id)}'>📅</button>`:''}<button class='l' data-act='tkdel' data-t='${esc(t.id)}'>✕</button></div>`;
 }
 function remBanner(){
   const d=tasksDue();if(!d.length)return'';
@@ -669,14 +700,14 @@ function bucket(t){
 const BN=['Просрочено','Сегодня','Завтра','На этой неделе','Позже','Без даты'];
 function shopHTML(){
   const cards=listsFor('shop').map(l=>{
-    const ts=tasks.filter(t=>kindOf(t)==='shop'&&t.list===l),open=ts.filter(t=>!t.done),done=ts.filter(t=>t.done),custom=lists.find(x=>x.name===l&&x.kind==='shop');
-    return `<div class='card' data-list='${esc(l)}' data-kind='shop'><div class='bd'><b>🛒 ${esc(l)}</b><span class='tag'>${open.length} в списке${done.length?` · ${done.length} в корзине`:''}</span></div><div class='ci'><input data-tt placeholder='Что купить? Например: молоко 2 л' style='flex:1;width:auto;min-width:160px'><button class='p' data-act='tkadd'>Добавить</button></div>${open.map(t=>taskRow(t,{shop:1})).join('')||"<div class='tag' style='margin-top:8px'>Список пуст</div>"}${done.length?`<details class='more'><summary>В корзине (${done.length})</summary>${done.map(t=>taskRow(t,{shop:1})).join('')}<div class='ci'><button class='l' data-act='tkclr'>Очистить купленное</button><button class='l' data-act='tkreset'>Вернуть всё в список</button></div></details>`:''}<div class='ci'><button class='l' data-act='tkcopy'>📋 Скопировать список</button>${custom?`<button class='l' data-act='tkdellist' data-id='${esc(custom.id)}'>Удалить список</button>`:''}</div></div>`;
+    const ts=tasks.filter(t=>kindOf(t)==='shop'&&t.list===l),open=ts.filter(t=>!t.done),done=ts.filter(t=>t.done),custom=lists.find(x=>x.name===l&&x.kind==='shop'),tot=ts.reduce((a,t)=>a+(t.p||0),0),bm=metaOf('shop',l),bud=(bm&&bm.budget)||0;
+    return `<div class='card' data-list='${esc(l)}' data-kind='shop'><div class='bd'><b>🛒 ${esc(l)}</b><span class='tag'>${open.length} в списке${done.length?` · ${done.length} в корзине`:''}</span></div>${tot||bud?`<div class='tag ${bud&&tot>bud?'bad':''}' style='margin-top:6px'>Итого: ${fmt(tot)} ₽${bud?` из ${fmt(bud)} ₽ бюджета${tot>bud?' · превышено на '+fmt(tot-bud)+' ₽':' · осталось '+fmt(bud-tot)+' ₽'}`:''}</div>`:''}<div class='ci'><input data-tt placeholder='Что купить? Например: молоко 2 л' style='flex:1;width:auto;min-width:160px'><input type='number' step='any' data-tpr placeholder='Цена, ₽' style='width:100px'><button class='p' data-act='tkadd'>Добавить</button></div>${open.map(t=>taskRow(t,{shop:1})).join('')||"<div class='tag' style='margin-top:8px'>Список пуст</div>"}${done.length?`<details class='more'><summary>В корзине (${done.length})</summary>${done.map(t=>taskRow(t,{shop:1})).join('')}<div class='ci'><button class='l' data-act='tkclr'>Очистить купленное</button><button class='l' data-act='tkreset'>Вернуть всё в список</button></div></details>`:''}<div class='ci'><span class='tag'>Бюджет</span><input type='number' step='any' data-bg value='${bud||''}' placeholder='₽' style='width:110px'><button class='l' data-act='tkbudget'>Сохранить</button></div><div class='ci'><button class='l' data-act='tkcopy'>📋 Скопировать список</button>${custom&&l!=='Покупки'?`<button class='l' data-act='tkdellist' data-id='${esc(custom.id)}'>Удалить список</button>`:''}</div></div>`;
   }).join('');
   return `<div class='sec'>Списки покупок</div>${cards}<div class='card'><div class='ci' style='margin:0'><input data-nl data-k='shop' placeholder='Новый список, например «Хозяйственные товары»' style='flex:1;width:auto'><button data-act='tklist'>Создать</button></div></div>`;
 }
 function planHTML(){
   const pl=listsFor('plan'),all=tasks.filter(t=>kindOf(t)==='plan'),open=all.filter(t=>!t.done),done=all.filter(t=>t.done);
-  const form=`<div class='card' data-kind='plan'><div class='bd'><b>Новая задача</b></div><div class='ci'><input data-tt placeholder='Что нужно сделать' style='flex:1;width:auto;min-width:160px'></div><div class='ci'><select data-tl style='width:auto'>${pl.map(l=>`<option>${esc(l)}</option>`).join('')}</select><input type='date' data-td><input type='time' data-tm style='width:110px'><label style='display:flex;gap:6px;align-items:center;margin:0'><input type='checkbox' data-tp style='width:auto;margin:0'>❗ срочно</label><button class='p' data-act='tkadd'>Добавить</button></div></div>`;
+  const form=`<div class='card' data-kind='plan'><div class='bd'><b>Новая задача</b></div><div class='ci'><input data-tt placeholder='Что нужно сделать' style='flex:1;width:auto;min-width:160px'></div><div class='ci'><select data-tl style='width:auto'>${pl.map(l=>`<option>${esc(l)}</option>`).join('')}</select><input type='date' data-td><input type='time' data-tm style='width:110px'><label style='display:flex;gap:6px;align-items:center;margin:0'><input type='checkbox' data-tp style='width:auto;margin:0'>❗ срочно</label><select data-tr style='width:auto'><option value=''>без повтора</option><option value='day'>каждый день</option><option value='week'>каждую неделю</option><option value='month'>каждый месяц</option></select><button class='p' data-act='tkadd'>Добавить</button></div></div>`;
   const groups=BN.map((n,i)=>{const g=open.filter(t=>bucket(t)===i).sort((a,b)=>(b.pr?1:0)-(a.pr?1:0)||(dueTs(a)||9e15)-(dueTs(b)||9e15));return g.length?`<div class='card'><div class='bd'><b>${n}</b><span class='tag'>${g.length}</span></div>${g.map(t=>taskRow(t,{list:1})).join('')}</div>`:''}).join('');
   const dn=done.length?`<div class='card'><details class='more'><summary>Выполнено (${done.length})</summary>${done.slice(0,30).map(t=>taskRow(t,{list:1})).join('')}<div class='ci'><button class='l' data-act='tkclrplan'>Очистить выполненные</button></div></details></div>`:'';
   const nl=`<div class='card'><div class='ci' style='margin:0'><input data-nl data-k='plan' placeholder='Новый план или проект, например «Проект А»' style='flex:1;width:auto'><button data-act='tklist'>Создать</button></div></div>`;
@@ -688,7 +719,7 @@ function notifCard(){
 }
 function remHTML(){
   const all=tasks.filter(t=>!t.done&&t.due).sort((a,b)=>dueTs(a)-dueTs(b));
-  const form=`<div class='card' data-kind='plan' data-list='Напоминания'><div class='bd'><b>Новое напоминание</b></div><div class='ci'><input data-tt placeholder='О чём напомнить' style='flex:1;width:auto;min-width:160px'></div><div class='ci'><input type='date' data-td value='${iso(new Date())}'><input type='time' data-tm style='width:110px'><button class='p' data-act='tkadd'>Добавить</button></div></div>`;
+  const form=`<div class='card' data-kind='plan' data-list='Напоминания'><div class='bd'><b>Новое напоминание</b></div><div class='ci'><input data-tt placeholder='О чём напомнить' style='flex:1;width:auto;min-width:160px'></div><div class='ci'><input type='date' data-td value='${iso(new Date())}'><input type='time' data-tm style='width:110px'><select data-tr style='width:auto'><option value=''>без повтора</option><option value='day'>каждый день</option><option value='week'>каждую неделю</option><option value='month'>каждый месяц</option></select><button class='p' data-act='tkadd'>Добавить</button></div></div>`;
   const list=`<div class='card'><div class='bd'><b>Ближайшие</b><span class='tag'>${all.length}</span></div>${all.map(t=>taskRow(t,{list:1})).join('')||"<div class='tag' style='margin-top:8px'>Напоминаний с датой пока нет</div>"}</div>`;
   return `<div class='sec'>Напоминания</div>${form}${list}${notifCard()}`;
 }
@@ -706,12 +737,10 @@ async function enableNotif(){
   const p=await Notification.requestPermission();setSync(p==='granted'?'Уведомления включены':'Уведомления не разрешены');render();
 }
 async function remoteSave(row,key,arr){
-  if(sb&&uid){const {error}=await sb.from('goals').upsert({user_id:uid,id:row.id,data:row,updated_at:new Date().toISOString()},{onConflict:'user_id,id'});setSync(error?'Ошибка сохранения: '+error.message:'Синхронизировано ✓')}
-  else{try{localStorage.setItem(key,JSON.stringify(arr))}catch(e){}}
+  if(sb&&uid)await syncRow(row);else{try{localStorage.setItem(key,JSON.stringify(arr))}catch(e){}}
 }
 async function remoteDel(id,key,arr){
-  if(sb&&uid){const {error}=await sb.from('goals').delete().eq('id',id);setSync(error?'Ошибка удаления: '+error.message:'Синхронизировано ✓')}
-  else{try{localStorage.setItem(key,JSON.stringify(arr))}catch(e){}}
+  if(sb&&uid)await syncDel(id);else{try{localStorage.setItem(key,JSON.stringify(arr))}catch(e){}}
 }
 async function saveL(l){const i=lists.findIndex(x=>x.id===l.id);i<0?lists.push(l):lists[i]=l;render();await remoteSave(l,'smart_lists',lists)}
 async function delL(id){lists=lists.filter(x=>x.id!==id);render();await remoteDel(id,'smart_lists',lists)}
@@ -719,11 +748,16 @@ async function taskAct(a,b){
   const c=b.closest('.card'),id=b.dataset.t,q=s=>{const e=c&&c.querySelector(s);return e?e.value:''};
   if(a==='tkadd'){
     const t=q('[data-tt]').trim();if(!t)return;
-    const list=q('[data-tl]')||c.dataset.list||'Дела',kind=c.dataset.kind||'plan',due=q('[data-td]'),pe=c.querySelector('[data-tp]');
+    const list=q('[data-tl]')||c.dataset.list||'Дела',kind=c.dataset.kind||'plan',rec=q('[data-tr]'),due0=q('[data-td]'),due=rec&&!due0?iso(new Date()):due0,pe=c.querySelector('[data-tp]');
     if(list==='Напоминания'&&!due){setSync('Укажите дату напоминания');return}
-    await saveT({id:'task_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),type:'task',t,list,kind,done:false,due,time:q('[data-tm]'),pr:!!(pe&&pe.checked),created:iso(new Date())});
+    await saveT({id:'task_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),type:'task',t,list,kind,done:false,due,time:q('[data-tm]'),pr:!!(pe&&pe.checked),p:parseFloat(q('[data-tpr]'))||0,rec,created:iso(new Date())});
   }
-  else if(a==='tktog'){const t=tasks.find(x=>x.id===id);if(t)await saveT({...t,done:!t.done})}
+  else if(a==='tktog'){
+    const t=tasks.find(x=>x.id===id);if(!t)return;
+    if(!t.done&&t.rec&&t.due){let nd=t.due,n=0;const td=iso(new Date());do{nd=addPeriod(nd,t.rec);n++}while(nd<=td&&n<400);await saveT({...t,due:nd,done:false,count:(t.count||0)+1,last:td});setSync('🔁 Выполнено. Следующий раз: '+nd.slice(8)+'.'+nd.slice(5,7))}
+    else await saveT({...t,done:!t.done});
+  }
+  else if(a==='tkbudget'){const name=c.dataset.list,m=metaOf('shop',name)||{id:'list_shop_'+name.replace(/[^0-9A-Za-zА-Яа-яЁё]/g,'_'),type:'list',name,kind:'shop'};await saveL({...m,budget:parseFloat(q('[data-bg]'))||0})}
   else if(a==='tkdel')await delT(id);
   else if(a==='tkclr'){for(const t of tasks.filter(x=>x.list===c.dataset.list&&kindOf(x)===c.dataset.kind&&x.done))await delT(t.id)}
   else if(a==='tkclrplan'){for(const t of tasks.filter(x=>kindOf(x)==='plan'&&x.done))await delT(t.id)}
@@ -761,7 +795,7 @@ function tick(){
 const pad2=n=>String(n).padStart(2,'0');
 setInterval(tick,30000);
 $('#list').addEventListener('keydown',e=>{
-  if(e.key!=='Enter'||!e.target.matches||!e.target.matches('[data-tt],[data-it],[data-nl],[data-qv]'))return;
+  if(e.key!=='Enter'||!e.target.matches||!e.target.matches('[data-tt],[data-it],[data-nl],[data-qv],[data-tpr]'))return;
   const b=e.target.closest('.card').querySelector("[data-act='tkadd'],[data-act='itadd'],[data-act='tklist'],[data-act='qkgen']");
   if(b){e.preventDefault();b.click()}
 });
@@ -819,16 +853,48 @@ async function quickAct(a,b,g){
   await store.save(ng);
   setSync('✓ '+ng.title+': '+fmt(cur(ng))+' '+ng.unit+' из '+fmt(ng.target));
 }
+const metaOf=(kind,name)=>lists.find(x=>x.kind===kind&&x.name===name);
+let recovering=false;
+function showRecovery(){showAuth('Задайте новый пароль');$('#authform').hidden=true;$('#recov').hidden=false}
+$('#forgot').onclick=async()=>{
+  const email=$('#em').value.trim().toLowerCase(),m=$('#authm');
+  if(!email){authErr(m,'Введите email: на него придёт ссылка для смены пароля.');return}
+  m.style.color='var(--mut)';m.textContent='Отправляем…';
+  try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    if(error)authErr(m,'Ошибка: '+error.message);else{m.style.color='var(--mut)';m.textContent='Письмо со ссылкой отправлено. Откройте ссылку на этом устройстве.'}
+  }catch(e){authErr(m,'Не удалось отправить: '+(e&&e.message||e))}
+};
+$('#npb').onclick=async()=>{
+  const p=$('#np').value,m=$('#authm');
+  if(p.length<6){authErr(m,'Пароль не короче 6 символов.');return}
+  try{
+    const {error}=await sb.auth.updateUser({password:p});
+    if(error){authErr(m,'Ошибка: '+error.message);return}
+    recovering=false;try{history.replaceState(null,'',location.pathname)}catch(e){}
+    $('#recov').hidden=true;$('#authform').hidden=false;m.textContent='';
+    const {data}=await sb.auth.getSession();if(data.session)await startSynced(data.session);
+  }catch(e){authErr(m,String(e&&e.message||e))}
+};
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e});
+$('#inst').onclick=()=>{
+  $('#mn').hidden=true;
+  if(deferredInstall){deferredInstall.prompt();deferredInstall=null;return}
+  alert('Как установить приложение:\n• iPhone (Safari): кнопка «Поделиться» → «На экран Домой».\n• Android (Chrome): меню ⋮ → «Установить приложение».\n• Компьютер (Chrome или Edge): значок установки в адресной строке.');
+};
 async function init(){
   render();
   if(!window.supabase||SUPABASE_URL.indexOf('ВСТАВЬТЕ')===0){startLocal('Только на этом устройстве: не настроен Supabase');return}
   sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  recovering=/type=recovery/.test(location.hash);
   sb.auth.onAuthStateChange((ev,sess)=>{
-    if(sess)startSynced(sess);
+    if(ev==='PASSWORD_RECOVERY'){recovering=true;showRecovery();return}
+    if(sess&&!recovering)startSynced(sess);
     else if(ev==='SIGNED_OUT'){goals=[];tasks=[];lists=[];store=null;uid=null;render();showAuth('')}
   });
   const {data}=await sb.auth.getSession();
-  if(data.session)startSynced(data.session);else showAuth('');
+  if(recovering)showRecovery();else if(data.session)startSynced(data.session);else showAuth('');
 }
 init();
 </script></body></html>
