@@ -104,7 +104,7 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 </head>
 <body><main>
 <header><h1>Мои цели<small>SMART</small></h1><span><span class="sync" id="sync">Подключение…</span> <button class="p" id="add">+ Новая цель</button></span></header>
-<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="fdb">Еда</button><button id="shb">Покупки</button><button id="plb">План</button><button id="rmb">Напоминания</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button><button class="l" id="thm" title="Тема оформления">🌓 Авто</button></nav>
+<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="fdb">Еда</button><button id="shb">Покупки</button><button id="plb">План</button><button id="rmb">Напоминания</button><button id="trb">🏆 Турнир</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button><button class="l" id="thm" title="Тема оформления">🌓 Авто</button></nav>
 <div id="mn" hidden><button id="xl">⬇ Excel</button><button id="bk">Резервная копия</button><button id="rs">Восстановить</button><button id="lg">Журнал записей</button><button id="inst">📲 Установить</button><button id="bdm">📏 Замеры</button><button id="offchk">🔧 Проверить офлайн-режим</button><button id="sm">📊 Итоги месяца</button><button id="lo">Выйти</button><input type="file" id="rsf" accept=".json,application/json" hidden></div>
 <div class="card" id="auth" hidden>
 <b style="font:600 19px 'Literata',Georgia,serif">Вход</b>
@@ -201,25 +201,51 @@ function spark(g){
   const ty=40-(g.target-mn)/r*36;
   return `<svg viewBox="0 0 300 44" preserveAspectRatio="none"><line x1="0" x2="300" y1="${ty}" y2="${ty}" stroke="var(--mut)" stroke-dasharray="3 3"/><polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map(xy).join(' ')}"/></svg>`;
 }
+const chZoom=(()=>{try{return JSON.parse(localStorage.getItem('smart_zoom')||'{}')}catch(e){return{}}})();
+const saveZoom=()=>{try{localStorage.setItem('smart_zoom',JSON.stringify(chZoom))}catch(e){}};
+const ZOPTS=[['all','Всё'],[180,'6 мес'],[90,'3 мес'],[30,'Месяц'],[14,'2 нед'],[7,'Неделя']];
+function zoomCtl(span,zr,canBack,canFwd,attr,pan){
+  const o=ZOPTS.filter(([r])=>r==='all'||span>r*1.2);
+  if(o.length<2)return'';
+  return `<div class='ci nop' style='margin:6px 0 0;gap:4px'>${canBack?`<button class='l' data-act='${pan}' ${attr} data-d='1'>◀</button>`:''}${o.map(([r,n])=>`<button class='${String(zr)===String(r)?'p':'l'}' style='padding:4px 10px;font-size:13px' data-act='${pan==='chp'?'chz':'bdz'}' ${attr} data-r='${r}'>${n}</button>`).join('')}${canFwd?`<button class='l' data-act='${pan}' ${attr} data-d='-1'>▶</button>`:''}</div>`;
+}
 function chart(g){
   if(isShort(g))return shortChart(g);
-  const W=480,H=180,L=44,R=14,T=18,B=24,e=entries(g),day=x=>new Date(String(x).slice(0,10)).getTime();
-  const t0=day(g.created),t1=Math.max(day(g.deadline),t0+864e5),nw=Date.now();
-  const vs=[g.start,g.target,...e.map(p=>p.v)],lo=Math.min(...vs),hi=Math.max(...vs),pd=(hi-lo)*.12||1,mn=lo-pd,mx=hi+pd;
-  const X=t=>L+Math.max(0,Math.min(1,(t-t0)/(t1-t0)))*(W-L-R),Y=v=>T+(1-(v-mn)/(mx-mn))*(H-T-B);
-  const pts=[{x:X(t0),y:Y(g.start),v:g.start,d:g.created.slice(0,10)},...e.map(p=>({x:X(day(p.d)),y:Y(p.v),v:p.v,d:p.d}))];
-  const line=pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' '),last=pts[pts.length-1],base=H-B,id='gr'+g.id;
-  const dm=t=>new Date(t).toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+  const W=480,H=190,L=44,R=14,T=18,B=26,DAY=864e5,e=entries(g),day=x=>new Date(String(x).slice(0,10)).getTime();
+  const f0=day(g.created),f1=Math.max(day(g.deadline),f0+DAY),nw=Date.now(),span=Math.round((f1-f0)/DAY);
+  const z=chZoom[g.id]||{r:span>120?90:'all',off:0},zr=(z.r==='all'||!(span>z.r*1.2))?'all':+z.r;
+  let t0=f0,t1=f1,canBack=false,canFwd=false;
+  if(zr!=='all'){
+    const sp=zr*DAY,mid=new Date(new Date().toDateString()).getTime();
+    let end=Math.min(mid+sp*0.1-(z.off||0)*sp/2,f1),start=end-sp;
+    if(start<f0){start=f0;end=Math.min(f1,start+sp)}
+    t0=start;t1=end;canBack=t0>f0+1;canFwd=(z.off||0)>0&&t1<f1-1;
+  }
+  const P=[{t:f0,v:g.start,d:g.created.slice(0,10)},...e.map(p=>({t:day(p.d),v:p.v,d:p.d}))];
+  const valAt=t=>{if(t<=P[0].t)return P[0].v;for(let i=1;i<P.length;i++){if(t<=P[i].t){const a=P[i-1],b=P[i];return b.t===a.t?b.v:a.v+(b.v-a.v)*(t-a.t)/(b.t-a.t)}}return P[P.length-1].v};
+  const plan=t=>g.start+(g.target-g.start)*(t-f0)/(f1-f0);
+  const ins=P.filter(p=>p.t>=t0&&p.t<=t1),vs=[valAt(t0),valAt(t1),...ins.map(p=>p.v)];
+  if(zr==='all')vs.push(g.start,g.target);
+  const lo=Math.min(...vs),hi=Math.max(...vs),pd=(hi-lo)*.15||Math.max(1,Math.abs(hi)*.02),mn=lo-pd,mx=hi+pd;
+  const X=t=>L+(t-t0)/(t1-t0)*(W-L-R),Y=v=>T+(1-(v-mn)/(mx-mn))*(H-T-B);
+  const line=P.map(p=>X(p.t).toFixed(1)+','+Y(p.v).toFixed(1)).join(' '),base=H-B,id='gr'+g.id,cid='cp'+g.id;
+  const long=(t1-t0)/DAY>200,dm=t=>new Date(t).toLocaleDateString('ru-RU',long?{month:'short',year:'2-digit'}:{day:'numeric',month:'short'});
   const sc={done:'--ok',ok:'--ok',warn:'--warn',bad:'--bad'}[status(g).k];
-  const grid=[lo,(lo+hi)/2,hi].map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--ln)"/><text x="${L-5}" y="${Y(v)+3}" text-anchor="end" font-size="9" fill="var(--mut)">${fmt(v)}</text>`).join('');
+  const grid=[mn+(mx-mn)*.08,(mn+mx)/2,mx-(mx-mn)*.08].map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--ln)"/><text x="${L-5}" y="${Y(v)+3}" text-anchor="end" font-size="9" fill="var(--mut)">${fmt(v)}</text>`).join('');
   const today=nw>t0&&nw<t1?`<line x1="${X(nw)}" x2="${X(nw)}" y1="${T}" y2="${base}" stroke="var(--mut)" stroke-width=".8" stroke-dasharray="2 3"/><text x="${X(nw)}" y="9" text-anchor="middle" font-size="9" fill="var(--mut)">сегодня</text>`:'';
-  return `<svg class="ch" viewBox="0 0 ${W} ${H}"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ac);stop-opacity:.35"/><stop offset="1" style="stop-color:var(--ac);stop-opacity:0"/></linearGradient></defs>${grid}
-<line x1="${L}" x2="${W-R}" y1="${Y(g.target)}" y2="${Y(g.target)}" stroke="var(--ok)" stroke-width="1.2" stroke-dasharray="5 3"/><text x="${W-R}" y="${Y(g.target)-4}" text-anchor="end" font-size="9" fill="var(--ok)">цель ${fmt(g.target)}</text>
-<line x1="${X(t0)}" y1="${Y(g.start)}" x2="${X(t1)}" y2="${Y(g.target)}" stroke="var(--mut)" stroke-width="1.2" stroke-dasharray="2 4"/>
-${today}${forecastLine(g,X,Y,t1)}${msMarks(g,X,Y,t0,t1)}${smoothLine(g,X,Y)}<polygon points="${pts[0].x},${base} ${line} ${last.x},${base}" fill="url(#${id})"/>
-<polyline points="${line}" fill="none" stroke="var(--ac)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-${pts.map((p,i)=>`<circle cx="${p.x}" cy="${p.y}" r="${i===pts.length-1?4.5:3}" fill="${i===pts.length-1?`var(${sc})`:'var(--card)'}" stroke="var(--ac)" stroke-width="1.8"><title>${p.d}: ${fmt(p.v)} ${esc(g.unit)}</title></circle>`).join('')}
-<text x="${L}" y="${H-8}" font-size="9" fill="var(--mut)">${dm(t0)}</text><text x="${W-R}" y="${H-8}" text-anchor="end" font-size="9" fill="var(--mut)">${dm(t1)}</text></svg><div class="tag">Сплошная линия — факт, пунктир — план к сроку, кружки — вехи 25/50/75%, точки — прогноз, оранжевая линия — сглаженный тренд (вес)</div>`;
+  const tl=g.target>=mn&&g.target<=mx?`<line x1="${L}" x2="${W-R}" y1="${Y(g.target)}" y2="${Y(g.target)}" stroke="var(--ok)" stroke-width="1.2" stroke-dasharray="5 3"/><text x="${W-R}" y="${Y(g.target)-4}" text-anchor="end" font-size="9" fill="var(--ok)">цель ${fmt(g.target)}</text>`:'';
+  const many=ins.length>40,lastP=P[P.length-1];
+  const dots=ins.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.v)}" r="${p===lastP?4.5:(many?2.2:3)}" fill="${p===lastP?`var(${sc})`:'var(--card)'}" stroke="var(--ac)" stroke-width="1.8"><title>${p.d}: ${fmt(p.v)} ${esc(g.unit)}</title></circle>`).join('');
+  const xl=[[t0,'start'],[(t0+t1)/2,'middle'],[t1,'end']].map(([t,a])=>`<text x="${t===t0?L:t===t1?W-R:X(t)}" y="${H-8}" text-anchor="${a}" font-size="9" fill="var(--mut)">${dm(t)}</text>`).join('');
+  const svg=`<svg class="ch" viewBox="0 0 ${W} ${H}"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ac);stop-opacity:.35"/><stop offset="1" style="stop-color:var(--ac);stop-opacity:0"/></linearGradient><clipPath id="${cid}"><rect x="${L-4}" y="${T-8}" width="${W-L-R+8}" height="${base-T+12}"/></clipPath></defs>${grid}${xl}${today}<g clip-path="url(#${cid})">${tl}<line x1="${X(t0)}" y1="${Y(plan(t0))}" x2="${X(t1)}" y2="${Y(plan(t1))}" stroke="var(--mut)" stroke-width="1.2" stroke-dasharray="2 4"/>${forecastLine(g,X,Y,t1)}${msMarks(g,X,Y,f0,f1)}${smoothLine(g,X,Y)}<polygon points="${X(P[0].t)},${base} ${line} ${X(lastP.t)},${base}" fill="url(#${id})"/><polyline points="${line}" fill="none" stroke="var(--ac)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}</g></svg>`;
+  return svg+zoomCtl(span,zr,canBack,canFwd,`data-g="${esc(g.id)}"`,'chp')+`<div class="tag">Сплошная линия — факт, пунктир — план к сроку, кружки — вехи 25/50/75%, точки — прогноз, оранжевая линия — сглаженный тренд (вес)</div>`;
+}
+function chartAct(a,b){
+  const id=b.dataset.g;if(!id)return;
+  const z=chZoom[id]||{r:'all',off:0};
+  if(a==='chz')chZoom[id]={r:b.dataset.r==='all'?'all':+b.dataset.r,off:0};
+  else chZoom[id]={r:z.r,off:Math.max(0,(z.off||0)+(+b.dataset.d))};
+  saveZoom();render();
 }
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function addPeriod(s,r){const d=new Date(s+'T00:00:00');r==='day'?d.setDate(d.getDate()+1):r==='week'?d.setDate(d.getDate()+7):d.setMonth(d.getMonth()+1);return iso(d)}
@@ -244,13 +270,14 @@ function overview(){
   return `<div class="card ov"><svg viewBox="0 0 100 100" style="width:110px;height:110px"><circle r="40" cx="50" cy="50" fill="none" stroke="var(--ln)" stroke-width="12"/>${seg}<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="700" fill="var(--tx)">${avg}%</text></svg><div class="lg"><b>Средний прогресс · целей: ${n}</b>${Object.keys(col).filter(k=>c[k]).map(k=>`<div><i class="dot" style="background:var(${col[k]})"></i>${nm[k]}: ${c[k]}</div>`).join('')}</div></div>`;
 }
 function render(){
-  const L=$('#list');$('#qkc').hidden=!sample||!goals.length;$('#allb').className=mode==='all'?'p':'';$('#tdb').className=mode==='today'?'p':'';$('#wkb').className=mode==='week'?'p':'';$('#arb').className=mode==='arch'?'p':'';const pn=pending();$('#tdb').textContent='Сегодня'+(pn?' · '+pn:'');$('#fdb').className=mode==='food'?'p':'';$('#shb').className=mode==='shop'?'p':'';$('#plb').className=mode==='plan'?'p':'';$('#rmb').className=mode==='rem'?'p':'';const tn=tasksDue().length,sn=tasks.filter(t=>kindOf(t)==='shop'&&!t.done).length;$('#rmb').textContent='Напоминания'+(tn?' · '+tn:'');$('#shb').textContent='Покупки'+(sn?' · '+sn:'');
-  if(!goals.length&&!['shop','plan','rem','food','sum','body'].includes(mode)){L.innerHTML='<div class="empty">Целей пока нет. Нажмите «Новая цель» и опишите её по методу SMART.</div>';return}
+  schedulePush();const L=$('#list');$('#qkc').hidden=!sample||!goals.length;$('#allb').className=mode==='all'?'p':'';$('#tdb').className=mode==='today'?'p':'';$('#wkb').className=mode==='week'?'p':'';$('#arb').className=mode==='arch'?'p':'';const pn=pending();$('#tdb').textContent='Сегодня'+(pn?' · '+pn:'');$('#fdb').className=mode==='food'?'p':'';$('#trb').className=mode==='tour'?'p':'';$('#shb').className=mode==='shop'?'p':'';$('#plb').className=mode==='plan'?'p':'';$('#rmb').className=mode==='rem'?'p':'';const tn=tasksDue().length,sn=tasks.filter(t=>kindOf(t)==='shop'&&!t.done).length;$('#rmb').textContent='Напоминания'+(tn?' · '+tn:'');$('#shb').textContent='Покупки'+(sn?' · '+sn:'');
+  if(!goals.length&&!['shop','plan','rem','food','sum','body','tour'].includes(mode)){L.innerHTML='<div class="empty">Целей пока нет. Нажмите «Новая цель» и опишите её по методу SMART.</div>';return}
   const order={warn:0,bad:0,ok:1,done:2};
   const gs=goals.filter(g=>mode==='arch'?g.archived:!g.archived).sort((a,b)=>order[status(a).k]-order[status(b).k]);
   if(mode==='today'){L.innerHTML=glance()+remBanner()+todayHTML();return}
   if(mode==='food'){L.innerHTML=foodHTML();return}
   if(mode==='sum'){L.innerHTML=sumHTML();return}
+  if(mode==='tour'){L.innerHTML=tourHTML();if(!tourState.loaded&&!tourState.loading)loadTour();return}
   if(mode==='body'){L.innerHTML=bodyHTML();return}
   if(mode==='shop'){L.innerHTML=shopHTML();return}
   if(mode==='plan'){L.innerHTML=planHTML();return}
@@ -294,7 +321,9 @@ $('#list').onclick=async ev=>{
   else if(a==='arch'||a==='unarch')await store.save({...g,archived:a==='arch'?iso(new Date()):null});
   else if(a.startsWith('lnk'))await linkAct(a,b,g||goals.find(x=>x.id===b.dataset.g));
   else if(a==='prizeget'||a==='prizem')await prizeGet(g,b.dataset.k);
+  else if(a==='chz'||a==='chp')chartAct(a,b);
   else if(a.startsWith('bd'))await bodyAct(a,b);
+  else if(a.startsWith('tr'))await tourAct(a,b);
   else if(a==='schmove')await schMove(b,g||goals.find(x=>x.id===b.dataset.g));
   else if(a==='smxl')await exportMonth();
   else if(a==='smpdf')window.print();
@@ -457,7 +486,7 @@ function forecast(g){
 function forecastLine(g,X,Y,t1){
   const f=forecast(g);if(!f||f.never||pct(g)>=100)return'';
   const e=entries(g),l=e[e.length-1],tl=new Date(l.d).getTime(),v1=f.b+f.k*((t1-f.d0)/864e5);
-  return `<line x1='${X(tl)}' y1='${Y(l.v)}' x2='${X(t1)}' y2='${Math.max(18,Math.min(156,Y(v1)))}' stroke='var(--warn)' stroke-width='2' stroke-dasharray='1 5' stroke-linecap='round'/>`;
+  return `<line x1='${X(tl)}' y1='${Y(l.v)}' x2='${X(t1)}' y2='${Math.max(18,Math.min(164,Y(v1)))}' stroke='var(--warn)' stroke-width='2' stroke-dasharray='1 5' stroke-linecap='round'/>`;
 }
 function moneyTip(g){
   if(g.cat!=='money'||g.target<=g.start)return[];
@@ -623,7 +652,7 @@ async function startSynced(session){
   if(uid===session.user.id&&store&&!offlineMode)return;
   offlineMode=false;uid=session.user.id;try{localStorage.setItem('smart_last_uid',uid)}catch(e){}
   $('#auth').hidden=true;$('#list').hidden=false;makeStore();
-  await loadAll();
+  await loadAll();loadTour(true);
   if(!window._chan){window._chan=1;sb.channel('goals-'+uid).on('postgres_changes',{event:'*',schema:'public',table:'goals'},()=>{if(store&&!offlineMode)loadAll()}).subscribe();document.addEventListener('visibilitychange',()=>{if(!document.hidden&&store&&!offlineMode)loadAll()})}
 }
 async function onOnline(){
@@ -889,7 +918,7 @@ $('#list').addEventListener('keydown',e=>{
   const b=(e.target.closest('details')||e.target.closest('.card')).querySelector("[data-act='tkadd'],[data-act='itadd'],[data-act='tklist'],[data-act='qkgen'],[data-act='tksubadd']");
   if(b){e.preventDefault();b.click()}
 });
-{const h=location.hash.slice(1);if(['today','week','arch','shop','plan','rem','food','sum','body'].includes(h))mode=h}
+{const h=location.hash.slice(1);if(['today','week','arch','shop','plan','rem','food','sum','body','tour'].includes(h))mode=h}
 const isAdd=g=>g.inc?g.inc==='add':g.cat==='money';
 function addAt(g,d,v){
   const S=entries(g),prev=S.filter(x=>x.d<=d).pop(),base=prev?prev.v:g.start;
@@ -1832,18 +1861,23 @@ const daysSince=d=>Math.floor((Date.now()-new Date(d))/864e5);
 const BODY=[['ws','Талия','--ac'],['hp','Бёдра','--warn'],['ch','Грудь','--ok']];
 const bodyRows=()=>lists.filter(l=>l.kind==='body'&&l.d).sort((a,b)=>a.d.localeCompare(b.d));
 function bodyChart(rows){
-  const W=480,H=190,L=38,R=16,T=16,B=26,tm=d=>new Date(d).getTime();
-  const vals=rows.flatMap(r=>BODY.map(b=>+r[b[0]]).filter(v=>v>0));
-  if(rows.length<2||!vals.length)return'';
-  const mn=Math.floor(Math.min(...vals)-2),mx=Math.ceil(Math.max(...vals)+2),t0=tm(rows[0].d),t1=Math.max(tm(rows[rows.length-1].d),t0+864e5);
-  const X=d=>L+(tm(d)-t0)/(t1-t0)*(W-L-R),Y=v=>T+(1-(v-mn)/(mx-mn))*(H-T-B);
+  const W=480,H=190,L=38,R=16,T=16,B=26,DAY=864e5,tm=d=>new Date(d).getTime();
+  if(rows.length<2)return'';
+  const full0=tm(rows[0].d),full1=Math.max(tm(rows[rows.length-1].d),full0+DAY),span=Math.round((full1-full0)/DAY);
+  const z=chZoom.__body||{r:'all',off:0},zr=(z.r==='all'||!(span>z.r*1.2))?'all':+z.r;
+  let t0=full0,t1=full1,canBack=false,canFwd=false;
+  if(zr!=='all'){const sp=zr*DAY;let end=full1-(z.off||0)*sp/2,start=end-sp;if(start<full0){start=full0;end=Math.min(full1,start+sp)}t0=start;t1=end;canBack=t0>full0+1;canFwd=(z.off||0)>0&&t1<full1-1}
+  const win=rows.filter(r=>tm(r.d)>=t0-1&&tm(r.d)<=t1+1),vals=win.flatMap(r=>BODY.map(b=>+r[b[0]]).filter(v=>v>0));
+  const ctl=zoomCtl(span,zr,canBack,canFwd,'','bdp');
+  if(win.length<2||!vals.length)return `<div class='tag' style='margin-top:8px'>В выбранном периоде меньше двух замеров.</div>${ctl}`;
+  const mn=Math.floor(Math.min(...vals)-2),mx=Math.ceil(Math.max(...vals)+2),X=d=>L+(tm(d)-t0)/Math.max(1,t1-t0)*(W-L-R),Y=v=>T+(1-(v-mn)/(mx-mn))*(H-T-B);
   const grid=[mn,(mn+mx)/2,mx].map(v=>`<line x1='${L}' x2='${W-R}' y1='${Y(v)}' y2='${Y(v)}' stroke='var(--ln)'/><text x='${L-5}' y='${Y(v)+3}' text-anchor='end' font-size='9' fill='var(--mut)'>${fmt(v)}</text>`).join('');
   const lines=BODY.map(([k,,c])=>{
-    const pts=rows.filter(r=>+r[k]>0).map(r=>[X(r.d),Y(+r[k]),+r[k]]);if(!pts.length)return'';
+    const pts=win.filter(r=>+r[k]>0).map(r=>[X(r.d),Y(+r[k]),+r[k]]);if(!pts.length)return'';
     return `<polyline points='${pts.map(p=>p[0]+','+p[1]).join(' ')}' fill='none' stroke='var(${c})' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/>`+pts.map((p,i)=>`<circle cx='${p[0]}' cy='${p[1]}' r='3.5' fill='var(--card)' stroke='var(${c})' stroke-width='1.8'/>${i===pts.length-1?`<text x='${p[0]}' y='${p[1]-8}' text-anchor='middle' font-size='9.5' font-weight='600' fill='var(--tx)'>${fmt(p[2])}</text>`:''}`).join('');
   }).join('');
-  const dm=d=>d.slice(8)+'.'+d.slice(5,7);
-  return `<svg class='ch' viewBox='0 0 ${W} ${H}'>${grid}${lines}<text x='${L}' y='${H-8}' font-size='9' fill='var(--mut)'>${dm(rows[0].d)}</text><text x='${W-R}' y='${H-8}' text-anchor='end' font-size='9' fill='var(--mut)'>${dm(rows[rows.length-1].d)}</text></svg><div class='tag'>${BODY.map(([,n,c])=>`<span style='color:var(${c})'>●</span> ${n}`).join(' &nbsp; ')}</div>`;
+  const long=(t1-t0)/DAY>200,dm=t=>new Date(t).toLocaleDateString('ru-RU',long?{month:'short',year:'2-digit'}:{day:'numeric',month:'short'});
+  return `<svg class='ch' viewBox='0 0 ${W} ${H}'>${grid}${lines}<text x='${L}' y='${H-8}' font-size='9' fill='var(--mut)'>${dm(t0)}</text><text x='${W-R}' y='${H-8}' text-anchor='end' font-size='9' fill='var(--mut)'>${dm(t1)}</text></svg>${ctl}<div class='tag'>${BODY.map(([,n,c])=>`<span style='color:var(${c})'>●</span> ${n}`).join(' &nbsp; ')}</div>`;
 }
 function bodyHTML(){
   const rows=bodyRows(),last=rows[rows.length-1],td=iso(new Date());
@@ -1865,6 +1899,7 @@ async function bodyAct(a,b){
     await saveL({id:'body_'+Date.now().toString(36),type:'list',kind:'body',d:q('[data-bd]')||iso(new Date()),ws:isNaN(ws)?0:ws,hp:isNaN(hp)?0:hp,ch:isNaN(ch)?0:ch});
     setSync('✓ Замер сохранён');
   }else if(a==='bddel')await delL(b.dataset.id);
+  else if(a==='bdz'||a==='bdp'){const z=chZoom.__body||{r:'all',off:0};chZoom.__body=a==='bdz'?{r:b.dataset.r==='all'?'all':+b.dataset.r,off:0}:{r:z.r,off:Math.max(0,(z.off||0)+(+b.dataset.d))};saveZoom();render()}
 }
 $('#bdm').onclick=()=>{$('#mn').hidden=true;setMode('body')};
 // --- призы за вехи ---
@@ -1948,6 +1983,131 @@ async function exportMonth(){
     await dl.save({filename:'report-'+m+'.xlsx',data:XLSX.write(wb,{bookType:'xlsx',type:'array'})});
   }catch(e){if(!(e&&e.code==='declined'))setSync('Экспорт недоступен')}
 }
+// ===== v6: турниры между пользователями =====
+const tourState={list:[],members:{},scores:{},err:null,loaded:false,loading:false,joinCode:''};
+const addDays=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return iso(x)};
+function pctAt(g,d){
+  const E=entries(g).filter(p=>p.d<=d),v=E.length?E[E.length-1].v:g.start,tt=g.target-g.start;
+  if(!tt)return 100;return Math.max(0,Math.min(100,(v-g.start)/tt*100));
+}
+function tournScore(t){
+  const s=t.start_date,td=iso(new Date()),e=t.end_date>td?td:t.end_date,prev=addDays(s,-1);
+  let prog=0,done=0,cyc=0;const days=new Set();
+  goals.forEach(g=>{
+    entries(g).forEach(p=>{if(p.d>=s&&p.d<=e)days.add(p.d)});
+    (g.logs||[]).forEach(l=>{if(l.d>=s&&l.d<=e)days.add(l.d)});
+    if(g.repeat){
+      const h=(g.history||[]).filter(x=>x.to>=s&&x.to<=e&&x.p>=100).length+((!g.archived&&pct(g)>=100&&td>=s&&td<=t.end_date)?1:0);
+      cyc+=h*(g.repeat==='day'?5:10);return;
+    }
+    const a=pctAt(g,prev),b=pctAt(g,e);prog+=Math.max(0,b-a);if(a<100&&b>=100)done++;
+  });
+  const tk=tasks.filter(x=>x.done&&x.doneAt>=s&&x.doneAt<=e).length;
+  const details={prog:Math.round(prog),days:days.size,done,cyc,tasks:tk};
+  return{points:Math.round(prog+3*days.size+25*done+cyc+tk),details};
+}
+async function loadTour(silent){
+  if(!sb||!uid||offlineMode||tourState.loading)return;
+  tourState.loading=true;
+  try{
+    const t=await sb.from('tournaments').select('*').order('created_at',{ascending:false});
+    if(t.error){tourState.err=(t.error.code==='42P01'||t.error.code==='PGRST205'||/does not exist|schema cache/i.test(t.error.message||''))?'nosql':(t.error.message||'ошибка');tourState.list=[]}
+    else{
+      tourState.err=null;tourState.list=t.data||[];tourState.members={};tourState.scores={};
+      const ids=tourState.list.map(x=>x.id);
+      if(ids.length){
+        const m=await sb.from('tournament_members').select('*').in('tournament_id',ids),c=await sb.from('tournament_scores').select('*').in('tournament_id',ids);
+        (m.data||[]).forEach(x=>{(tourState.members[x.tournament_id]=tourState.members[x.tournament_id]||[]).push(x)});
+        (c.data||[]).forEach(x=>{tourState.scores[x.tournament_id+'|'+x.user_id]=x});
+      }
+    }
+  }catch(e){tourState.err=String((e&&e.message)||e)}
+  tourState.loading=false;tourState.loaded=true;
+  if(!silent||mode==='tour')render();
+  if(!tourState.err&&tourState.list.length)pushScores();
+}
+let pushT=null;
+function schedulePush(){
+  if(!sb||!uid||offlineMode||!tourState.list.length||pushT)return;
+  pushT=setTimeout(async()=>{pushT=null;await pushScores()},8000);
+}
+async function pushScores(){
+  if(!sb||!uid||offlineMode)return;
+  const td=iso(new Date());
+  for(const t of tourState.list){
+    if(td>addDays(t.end_date,1)||td<t.start_date)continue;
+    const sc=tournScore(t);
+    try{await sb.from('tournament_scores').upsert({tournament_id:t.id,user_id:uid,points:sc.points,details:sc.details,updated_at:new Date().toISOString()},{onConflict:'tournament_id,user_id'});tourState.scores[t.id+'|'+uid]={tournament_id:t.id,user_id:uid,points:sc.points,details:sc.details}}catch(e){}
+  }
+}
+function tourStatus(t){
+  const td=iso(new Date());
+  if(td<t.start_date)return{k:'soon',t:'Старт '+t.start_date.slice(8)+'.'+t.start_date.slice(5,7)};
+  if(td>t.end_date)return{k:'end',t:'Завершён'};
+  const n=Math.round((new Date(t.end_date+'T00:00:00')-new Date(td+'T00:00:00'))/864e5);
+  return{k:'on',t:'Идёт · осталось '+n+' дн.'};
+}
+function tourHTML(){
+  const st=tourState,H="<div class='sec'>Турниры</div>";
+  if(!sb||!uid)return H+"<div class='card'><div class='tag'>Турниры доступны после входа в аккаунт при подключённом сервере.</div></div>";
+  if(offlineMode||!navigator.onLine)return H+"<div class='card'><div class='tag'>Для турниров нужен интернет.</div></div>";
+  if(st.err==='nosql')return H+"<div class='card'><div class='bd'><b>Нужна одноразовая настройка</b></div><div class='tag' style='margin:6px 0'>Откройте в Supabase раздел SQL Editor, вставьте содержимое файла setup-tournament.sql, нажмите Run, затем вернитесь сюда и нажмите «Обновить».</div><div class='ci'><button class='p' data-act='trrefresh'>Обновить</button></div></div>";
+  if(st.err)return H+`<div class='card'><div class='tag bad'>Ошибка: ${esc(st.err)}</div><div class='ci'><button class='p' data-act='trrefresh'>Повторить</button></div></div>`;
+  const td=iso(new Date()),nick=(()=>{try{return localStorage.getItem('smart_nick')||''}catch(e){return''}})();
+  const create=`<div class='card'><div class='bd'><b>Создать турнир</b></div><div class='ci'><input data-trn placeholder='Название, например «Весна без сладкого»' style='flex:1;width:auto;min-width:180px'></div><div class='ci'><input type='date' data-trs value='${td}'><input type='date' data-tre value='${addDays(td,30)}'><input data-trk placeholder='Ваш ник' value='${esc(nick)}' style='width:130px'><button class='p' data-act='trcreate'>Создать</button></div></div>`;
+  const join=`<div class='card'><div class='bd'><b>Вступить по коду</b></div><div class='ci'><input data-trc placeholder='Код, например A1B2C3' value='${esc(st.joinCode||'')}' style='width:150px;text-transform:uppercase'><input data-trk placeholder='Ваш ник' value='${esc(nick)}' style='width:130px'><button class='p' data-act='trjoin'>Вступить</button></div></div>`;
+  const medals=['🥇','🥈','🥉'];
+  const cards=st.list.map(t=>{
+    const stt=tourStatus(t),mine=tournScore(t);
+    const rows=(st.members[t.id]||[]).map(m=>{const sc=st.scores[t.id+'|'+m.user_id],me=m.user_id===uid;return{n:m.nickname,me,p:me?mine.points:(sc?sc.points:0)}}).sort((a,b)=>b.p-a.p);
+    const win=stt.k==='end'&&rows.length?`<div class='row2' style='background:color-mix(in srgb,var(--ok) 14%,transparent);border-radius:12px;padding:8px 10px'><div>🏆 Победитель: <b>${esc(rows[0].n)}</b> · ${fmt(rows[0].p)} очков${rows[0].me?'. Это вы!':''}</div></div>`:'';
+    const d=mine.details,invite=`${esc(t.code)}`;
+    return `<div class='card' data-id='${esc(t.id)}'><div class='bd'><b>🏆 ${esc(t.name)}</b><span class='st ${stt.k==='on'?'ok':'warn'}'>${esc(stt.t)}</span></div><div class='tag' style='margin-top:4px'>${esc(t.start_date)} → ${esc(t.end_date)} · участников: ${rows.length} · код приглашения: <b>${invite}</b></div>${win}${rows.map((r,i)=>`<div class='row2' style='align-items:center;${r.me?'font-weight:600;background:color-mix(in srgb,var(--ac) 10%,transparent);border-radius:10px;padding:8px 10px':''}'><div>${medals[i]||(i+1)+'.'} ${esc(r.n)}${r.me?' (вы)':''}</div><div><b>${fmt(r.p)}</b> очков</div></div>`).join('')}<div class='tag' style='margin-top:8px'>Ваши очки: прогресс ${d.prog} · активные дни ${d.days}×3 · выполнено целей ${d.done}×25 · повторяющиеся цели ${d.cyc} · задачи ${d.tasks}</div><div class='ci'><button class='p' data-act='trcopy' data-id='${esc(t.id)}'>📋 Пригласить друга</button><button data-act='trrefresh'>Обновить</button><button class='l' data-act='trleave' data-id='${esc(t.id)}'>Выйти</button>${t.creator===uid?`<button class='l' data-act='trdel' data-id='${esc(t.id)}'>Удалить турнир</button>`:''}</div></div>`;
+  }).join('');
+  const rules=`<div class='card'><details class='more'><summary>Как считаются очки</summary><div class='tag' style='margin-top:8px'>За период турнира: +1 очко за каждый процент прогресса по целям, +3 за каждый день с любой отметкой, +25 за каждую цель, доведённую до 100%, +5 за каждый выполненный день ежедневной цели и +10 за выполненную неделю или месяц повторяющейся цели, +1 за каждую выполненную задачу. Соперники видят только ники и очки, названия и значения ваших целей остаются приватными. Очки считаются в приложении, поэтому турнир рассчитан на честную игру друзей.</div></details></div>`;
+  return H+cards+(st.list.length?'':"<div class='tag' style='margin:8px 0'>Пока нет турниров: создайте свой и отправьте друзьям код или ссылку.</div>")+create+join+rules;
+}
+async function tourAct(a,b){
+  const c=b.closest('.card'),q=s=>{const e=c&&c.querySelector(s);return e?e.value:''},id=b.dataset.id;
+  const nick=()=>{const n=q('[data-trk]').trim();try{if(n)localStorage.setItem('smart_nick',n)}catch(e){}return n};
+  if(a==='trrefresh'){tourState.loaded=false;setSync('Обновляю…');await loadTour();setSync('Синхронизировано ✓');return}
+  if(a==='trcreate'){
+    const name=q('[data-trn]').trim(),s0=q('[data-trs]'),e0=q('[data-tre]');
+    if(!name||!s0||!e0){setSync('Укажите название и даты турнира');return}
+    if(e0<s0){setSync('Дата окончания раньше начала');return}
+    const r=await sb.rpc('create_tournament',{p_name:name,p_start:s0,p_end:e0,p_nick:nick()});
+    if(r.error){setSync('Ошибка: '+r.error.message);return}
+    tourState.loaded=false;await loadTour();setSync('🏆 Турнир создан. Код: '+(r.data&&r.data.code));return;
+  }
+  if(a==='trjoin'){
+    const code=q('[data-trc]').trim();if(!code){setSync('Введите код турнира');return}
+    const r=await sb.rpc('join_tournament',{p_code:code,p_nick:nick()});
+    if(r.error){setSync('Ошибка: '+r.error.message);return}
+    tourState.joinCode='';tourState.loaded=false;await loadTour();setSync('🏆 Вы в турнире «'+((r.data&&r.data.name)||'')+'»');return;
+  }
+  if(a==='trcopy'){
+    const t=tourState.list.find(x=>x.id===id);if(!t)return;
+    const link=location.origin+location.pathname+'?join='+t.code;
+    const txt='Присоединяйся к турниру «'+t.name+'» ('+t.start_date+' — '+t.end_date+'). Код: '+t.code+'. Ссылка: '+link;
+    try{await navigator.clipboard.writeText(txt);setSync('Приглашение скопировано')}catch(e){setSync('Код турнира: '+t.code)}
+    return;
+  }
+  if(a==='trleave'){
+    if(!confirm('Выйти из турнира?'))return;
+    await sb.from('tournament_scores').delete().eq('tournament_id',id).eq('user_id',uid);
+    const r=await sb.from('tournament_members').delete().eq('tournament_id',id).eq('user_id',uid);
+    if(r.error){setSync('Ошибка: '+r.error.message);return}
+    tourState.loaded=false;await loadTour();return;
+  }
+  if(a==='trdel'){
+    if(!confirm('Удалить турнир у всех участников?'))return;
+    const r=await sb.from('tournaments').delete().eq('id',id);
+    if(r.error){setSync('Ошибка: '+r.error.message);return}
+    tourState.loaded=false;await loadTour();
+  }
+}
+$('#trb').onclick=()=>{tourState.loaded=false;setMode('tour')};
+{const jp=new URLSearchParams(location.search||'').get('join');if(jp){tourState.joinCode=jp.toUpperCase();mode='tour'}}
 async function init(){
   render();
   const last=(()=>{try{return localStorage.getItem('smart_last_uid')}catch(e){return null}})();
