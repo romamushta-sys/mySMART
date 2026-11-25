@@ -205,6 +205,7 @@ const chZoom=(()=>{try{return JSON.parse(localStorage.getItem('smart_zoom')||'{}
 const saveZoom=()=>{try{localStorage.setItem('smart_zoom',JSON.stringify(chZoom))}catch(e){}};
 const ZOPTS=[['all','Всё'],[180,'6 мес'],[90,'3 мес'],[30,'Месяц'],[14,'2 нед'],[7,'Неделя']];
 function zoomCtl(span,zr,canBack,canFwd,attr,pan){
+  if(span<60)return'';
   const o=ZOPTS.filter(([r])=>r==='all'||span>r*1.2);
   if(o.length<2)return'';
   return `<div class='ci nop' style='margin:6px 0 0;gap:4px'>${canBack?`<button class='l' data-act='${pan}' ${attr} data-d='1'>◀</button>`:''}${o.map(([r,n])=>`<button class='${String(zr)===String(r)?'p':'l'}' style='padding:4px 10px;font-size:13px' data-act='${pan==='chp'?'chz':'bdz'}' ${attr} data-r='${r}'>${n}</button>`).join('')}${canFwd?`<button class='l' data-act='${pan}' ${attr} data-d='-1'>▶</button>`:''}</div>`;
