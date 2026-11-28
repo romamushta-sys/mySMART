@@ -92,6 +92,7 @@ svg.sm{max-width:380px}
 svg.ht{height:auto;max-width:230px}
 [hidden]{display:none!important}
 .ci input[data-v]{width:150px}
+#undo{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));max-width:480px;margin:0 auto;z-index:150;background:var(--tx);color:var(--bg);border-radius:14px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 html.locked main{visibility:hidden}
 #lock{position:fixed;inset:0;z-index:300;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
 .lockbox{text-align:center;max-width:320px}
@@ -114,7 +115,9 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 </head>
 <body><main>
 <header><h1>Мои цели<small>SMART</small></h1><span><span class="sync" id="sync">Подключение…</span> <button class="p" id="add">+ Новая цель</button></span></header>
-<nav><button id="allb">Цели</button><button id="tdb">Сегодня</button><button id="fdb">Еда</button><button id="shb">Покупки</button><button id="plb">План</button><button id="rmb">Напоминания</button><button id="trb">🏆 Турнир</button><button id="wkb">Неделя</button><button id="arb">Архив</button><button class="l" id="menub">⋯ Ещё</button><button class="l" id="thm" title="Тема оформления">🌓 Авто</button></nav>
+<nav><button id="tdb">Сегодня</button><button id="allb">Цели</button><button id="fdb">Еда</button><button id="lsb">Списки</button><button id="morb">Ещё</button><button class="l" id="thm" title="Тема оформления">🌓 Авто</button></nav>
+<div id="undo" hidden></div>
+<div id="legacy" hidden><button id="shb"></button><button id="plb"></button><button id="rmb"></button><button id="trb"></button><button id="wkb"></button><button id="arb"></button><button id="menub"></button></div>
 <div id="mn" hidden><button id="xl">⬇ Excel</button><button id="bk">Резервная копия</button><button id="rs">Восстановить</button><button id="lg">Журнал записей</button><button id="inst">📲 Установить</button><button id="mnm">🍽 Меню на неделю</button><button id="exm">💳 Расходы</button><button id="achm">🏅 Достижения</button><button id="pinb">🔒 PIN-код</button><button id="bdm">📏 Замеры</button><button id="offchk">🔧 Проверить офлайн-режим</button><button id="sm">📊 Итоги месяца</button><button id="lo">Выйти</button><input type="file" id="rsf" accept=".json,application/json" hidden></div>
 <div id="lock" hidden><div class="lockbox"><div style="font:600 22px Literata,Georgia,serif">Введите PIN</div><div id="lkd" class="lkd"></div><div class="keys" id="lkk"></div><div class="tag" id="lkm" style="min-height:1.4em"></div><button class="l" id="lkf">Забыли PIN?</button></div></div>
 <div class="card" id="auth" hidden>
@@ -126,7 +129,7 @@ details.more summary{cursor:pointer;color:var(--mut);font-size:13px;margin-top:1
 <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="p" id="login">Войти</button><button id="signup">Регистрация</button><button class="l" id="forgot">Забыли пароль?</button></div></div>
 <div id="recov" hidden><label>Новый пароль (не короче 6 символов)<input id="np" type="password" autocomplete="new-password"></label><div style="margin-top:12px"><button class="p" id="npb">Сохранить пароль</button></div></div>
 <div class="tag" id="authm" style="margin-top:8px;color:var(--bad)"></div></div>
-<div class="card" id="qkc" hidden><div class="ci" style="margin:0"><input id="qk" style="flex:1;width:auto;min-width:200px" placeholder="Быстрый ввод: «съел 450 ккал», «был в зале»"><button class="p" id="qkb">Записать</button></div><div class="tag" id="qkm" style="margin-top:6px"></div></div>
+
 <form id="form" class="card" hidden onsubmit="return false">
 <label>Шаблон (необязательно)<select id="f_tpl"><option value="">— без шаблона —</option><option value="weight">Снизить вес</option><option value="money">Накопить на цель (копилка)</option><option value="cushion">Финансовая подушка</option><option value="month">Откладывать каждый месяц</option><option value="books">Прочитать N книг</option><option value="buy">Купить товары из списка</option><option value="water">Пить воду (стакан 250 мл)</option><option value="habit">Привычка N раз в неделю</option><option value="study">Освоить навык или язык</option></select></label>
 <label>Название цели<input id="f_title" placeholder="Например: накопить на отпуск"></label>
@@ -159,15 +162,15 @@ window.claude={use:async n=>n==='downloads'?{save:async({filename,data})=>{const
 <script>
 const $=s=>document.querySelector(s);
 const CATS={money:'💰 Деньги',weight:'⚖️ Вес и здоровье',study:'📚 Учёба',books:'📖 Книги',buy:'🛒 Покупки',other:'🎯 Другое'};
-let goals=[],store=null,sample=null,editId=null,aiText={},pendingDel=null;
+let goals=[],store=null,editId=null,pendingDel=null;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=n=>Number(n.toFixed(1)).toLocaleString('ru-RU');
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>iso(new Date());
 const setSync=t=>$('#sync').textContent=t;
 
 function srcEntries(g){
   const sg=goals.find(x=>x.id===g.src.g);if(!sg)return[];
-  const d0=g.created.slice(0,10),ex=(g.history||[]).length>0,inC=d=>g.repeat==='day'?d===g.deadline:((ex?d>d0:d>=d0)&&d<=g.deadline),by={};
+  const d0=cday(g),ex=(g.history||[]).length>0,inC=d=>g.repeat==='day'?d===g.deadline:((ex?d>d0:d>=d0)&&d<=g.deadline),by={};
   (sg.logs||[]).forEach(l=>{if(l.s===g.src.s&&inC(l.d))by[l.d]=(by[l.d]||0)+l.v});
   let c=0;return Object.keys(by).sort().map(d=>{c+=by[d];return{d,v:c}});
 }
@@ -198,19 +201,10 @@ function tips(g){
   if(g.cat==='weight')out.push('Следите за трендом за 2–3 недели, а не за ежедневными колебаниями.');
   const f=forecast(g);
   if(f&&pct(g)<100){out.unshift(f.never?'По текущему тренду цель не приближается: динамика идёт в другую сторону.':f.date.getFullYear()>new Date().getFullYear()+5?'При текущем темпе цель достигнется нескоро: нужно ускориться.':`Прогноз по тренду: цель около ${f.date.toLocaleDateString('ru-RU')} (${f.diff>3?`на ${Math.round(f.diff)} дн. позже срока`:f.diff<-3?`на ${Math.round(-f.diff)} дн. раньше срока`:'примерно в срок'}).`)}
-  {const p0=pct(g),q=[.25,.5,.75].find(q=>p0<q*100-0.01);if(q&&p0<100){const t0=new Date(g.created.slice(0,10)).getTime(),t1=new Date(g.deadline+'T00:00:00').getTime();out.push(`Ближайшая веха (${q*100}%): ${fmt(g.start+(g.target-g.start)*q)} ${esc(g.unit)} к ${new Date(t0+(t1-t0)*q).toLocaleDateString('ru-RU')}.`)}}
+  {const p0=pct(g),q=[.25,.5,.75].find(q=>p0<q*100-0.01);if(q&&p0<100){const t0=new Date(cday(g)).getTime(),t1=new Date(g.deadline+'T00:00:00').getTime();out.push(`Ближайшая веха (${q*100}%): ${fmt(g.start+(g.target-g.start)*q)} ${esc(g.unit)} к ${new Date(t0+(t1-t0)*q).toLocaleDateString('ru-RU')}.`)}}
   out.push(...moneyTip(g));
   {const tt=trendTip(g);if(tt)out.unshift(tt)}
   return out.concat(subTips(g));
-}
-function spark(g){
-  const pts=[{d:g.created.slice(0,10),v:g.start},...entries(g)];
-  if(pts.length<2)return'';
-  const t=x=>new Date(x).getTime(),t0=t(pts[0].d),t1=Math.max(t(pts[pts.length-1].d),t0+864e5);
-  const vs=pts.map(p=>p.v).concat(g.target),mn=Math.min(...vs),mx=Math.max(...vs),r=(mx-mn)||1;
-  const xy=p=>`${4+(t(p.d)-t0)/(t1-t0)*292},${40-(p.v-mn)/r*36}`;
-  const ty=40-(g.target-mn)/r*36;
-  return `<svg viewBox="0 0 300 44" preserveAspectRatio="none"><line x1="0" x2="300" y1="${ty}" y2="${ty}" stroke="var(--mut)" stroke-dasharray="3 3"/><polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map(xy).join(' ')}"/></svg>`;
 }
 const chZoom=(()=>{try{return JSON.parse(localStorage.getItem('smart_zoom')||'{}')}catch(e){return{}}})();
 const saveZoom=()=>{try{localStorage.setItem('smart_zoom',JSON.stringify(chZoom))}catch(e){}};
@@ -233,7 +227,7 @@ function chart(g){
     if(start<f0){start=f0;end=Math.min(f1,start+sp)}
     t0=start;t1=end;canBack=t0>f0+1;canFwd=(z.off||0)>0&&t1<f1-1;
   }
-  const P=[{t:f0,v:g.start,d:g.created.slice(0,10)},...e.map(p=>({t:day(p.d),v:p.v,d:p.d}))];
+  const P=[{t:f0,v:g.start,d:cday(g)},...e.map(p=>({t:day(p.d),v:p.v,d:p.d}))];
   const valAt=t=>{if(t<=P[0].t)return P[0].v;for(let i=1;i<P.length;i++){if(t<=P[i].t){const a=P[i-1],b=P[i];return b.t===a.t?b.v:a.v+(b.v-a.v)*(t-a.t)/(b.t-a.t)}}return P[P.length-1].v};
   const plan=t=>g.start+(g.target-g.start)*(t-f0)/(f1-f0);
   const ins=P.filter(p=>p.t>=t0&&p.t<=t1),vs=[valAt(t0),valAt(t1),...ins.map(p=>p.v)];
@@ -282,8 +276,8 @@ function overview(){
   return `<div class="card ov"><svg viewBox="0 0 100 100" style="width:110px;height:110px"><circle r="40" cx="50" cy="50" fill="none" stroke="var(--ln)" stroke-width="12"/>${seg}<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="700" fill="var(--tx)">${avg}%</text></svg><div class="lg"><b>Средний прогресс · целей: ${n}</b>${Object.keys(col).filter(k=>c[k]).map(k=>`<div><i class="dot" style="background:var(${col[k]})"></i>${nm[k]}: ${c[k]}</div>`).join('')}</div></div>`;
 }
 function render(){
-  schedulePush();achSoon();const L=$('#list');$('#qkc').hidden=!sample||!goals.length;$('#allb').className=mode==='all'?'p':'';$('#tdb').className=mode==='today'?'p':'';$('#wkb').className=mode==='week'?'p':'';$('#arb').className=mode==='arch'?'p':'';const pn=pending();$('#tdb').textContent='Сегодня'+(pn?' · '+pn:'');$('#fdb').className=mode==='food'?'p':'';$('#trb').className=mode==='tour'?'p':'';$('#shb').className=mode==='shop'?'p':'';$('#plb').className=mode==='plan'?'p':'';$('#rmb').className=mode==='rem'?'p':'';const tn=tasksDue().length,sn=tasks.filter(t=>kindOf(t)==='shop'&&!t.done).length;$('#rmb').textContent='Напоминания'+(tn?' · '+tn:'');$('#shb').textContent='Покупки'+(sn?' · '+sn:'');
-  if(!goals.length&&!['shop','plan','rem','food','sum','body','tour','menu','exp','ach'].includes(mode)){L.innerHTML='<div class="empty">Целей пока нет. Нажмите «Новая цель» и опишите её по методу SMART.</div>';return}
+  schedulePush();achSoon();const L=$('#list');$('#allb').className=mode==='all'?'p':'';$('#lsb').className=['shop','plan','rem'].includes(mode)?'p':'';$('#morb').className=!['all','today','food','shop','plan','rem'].includes(mode)?'p':'';$('#tdb').className=mode==='today'?'p':'';$('#wkb').className=mode==='week'?'p':'';$('#arb').className=mode==='arch'?'p':'';const pn=pending();$('#tdb').textContent='Сегодня'+(pn?' · '+pn:'');$('#fdb').className=mode==='food'?'p':'';$('#trb').className=mode==='tour'?'p':'';$('#shb').className=mode==='shop'?'p':'';$('#plb').className=mode==='plan'?'p':'';$('#rmb').className=mode==='rem'?'p':'';const tn=tasksDue().length,sn=tasks.filter(t=>kindOf(t)==='shop'&&!t.done).length;$('#rmb').textContent='Напоминания'+(tn?' · '+tn:'');$('#shb').textContent='Покупки'+(sn?' · '+sn:'');$('#lsb').textContent='Списки'+(tn+sn?' · '+(tn+sn):'');
+  if(!goals.length&&!['shop','plan','rem','food','sum','body','tour','menu','exp','ach','more'].includes(mode)){L.innerHTML=mode==='all'&&!wizSkipped()?wizHTML():'<div class="empty">Целей пока нет. Нажмите «Новая цель» и опишите её по методу SMART.</div>';return}
   const order={warn:0,bad:0,ok:1,done:2};
   const gs=goals.filter(g=>mode==='arch'?g.archived:!g.archived).sort((a,b)=>order[status(a).k]-order[status(b).k]);
   if(mode==='today'){L.innerHTML=glance()+remBanner()+todayHTML();return}
@@ -294,21 +288,22 @@ function render(){
   if(mode==='menu'){L.innerHTML=menuHTML();return}
   if(mode==='exp'){L.innerHTML=expHTML();return}
   if(mode==='ach'){L.innerHTML=achHTML();return}
-  if(mode==='shop'){L.innerHTML=shopHTML();return}
-  if(mode==='plan'){L.innerHTML=planHTML();return}
-  if(mode==='rem'){L.innerHTML=remHTML();return}
+  if(mode==='more'){L.innerHTML=moreHTML();return}
+  if(mode==='shop'){L.innerHTML=listsNav()+shopHTML();return}
+  if(mode==='plan'){L.innerHTML=listsNav()+planHTML();return}
+  if(mode==='rem'){L.innerHTML=listsNav()+remHTML();return}
   if(mode==='log'){L.innerHTML=logHTML();return}
   if(mode==='week'){L.innerHTML=weekHTML();return}
   if(mode==='all'&&!gs.length){L.innerHTML="<div class='empty'>Все цели в архиве. Создайте новую или откройте «Архив».</div>";return}
   if(mode==='arch'&&!gs.length){L.innerHTML="<div class='empty'>В архиве пока пусто.</div>";return}
-  L.innerHTML=(mode==='arch'?'':glance()+remBanner()+prizeBanner()+quickPanel())+(mode==='arch'?"<div class='sec'>Архив · завершённые и отложенные цели</div>":(goals.filter(g=>!g.archived).length>=3?overview():''))+gs.map(g=>{const s=status(g),p=pct(g);return `<div class="card" data-cat="${esc(g.cat)}" data-id="${esc(g.id)}">
+  L.innerHTML=(mode==='arch'?'':glance()+backupBanner()+remBanner()+prizeBanner()+quickPanel())+(mode==='arch'?"<div class='sec'>Архив · завершённые и отложенные цели</div>":(goals.filter(g=>!g.archived).length>=3?overview():''))+gs.map(g=>{const s=status(g),p=pct(g);return `<div class="card" data-cat="${esc(g.cat)}" data-id="${esc(g.id)}">
 <div class="bd"><div><b>${esc(g.title)}</b><div class="tag">${CATS[g.cat]||''} · до ${esc(g.deadline)}${rep(g)}${stl(g)}</div></div><div class="st ${s.k}">${s.t}</div></div>
 <div class="hero"><div class="big"><span>${fmt(cur(g))}</span><small>${esc(g.unit)} · цель ${fmt(g.target)}</small></div>${ring(p,s.k)}</div>
 <div class="tag">старт ${fmt(g.start)} ${esc(g.unit)}</div>${chipsHTML(g)}${streakHTML(g)}${linkHTML(g)}${prizeHTML(g)}${msPrizeHTML(g)}
 ${chart(g)}
 ${g.specific||g.relevant?`<div class="tag" style="margin-top:6px">${g.specific?'S: '+esc(g.specific):''}${g.relevant?' · R: '+esc(g.relevant):''}</div>`:''}
 ${(g.subs||[]).length?`<details class="more" data-gid="${esc(g.id)}"${openD.has(g.id)?' open':''}><summary>Подкатегории и динамика (${g.subs.length})</summary>${subHTML(g)}${combo(g)}</details>`:''}${itemsHTML(g)}<ul class="tips">${tipsHTML(g)}</ul>
-${aiText[g.id]?`<div class="ai">${esc(aiText[g.id])}</div>`:''}
+
 <div class="ci">${g.mode==='items'?'':`<input type="number" step="any" placeholder="${isAdd(g)?'Добавить, '+esc(g.unit):'Текущее значение'}" data-v><input type="date" value="${today()}" data-d><button class="p" data-act="ci">${isAdd(g)?'Добавить':'Отметить'}</button>`}
 <button class="l" data-act="${g.archived?'unarch':'arch'}">${g.archived?'Вернуть':'В архив'}</button><button class="l" data-act="edit">Изменить</button><button class="l" data-act="del">${pendingDel===g.id?'Точно удалить?':'Удалить'}</button></div></div>`}).join('');
 }
@@ -338,6 +333,11 @@ $('#list').onclick=async ev=>{
   else if(a==='prizeget'||a==='prizem')await prizeGet(g,b.dataset.k);
   else if(a==='chz'||a==='chp')chartAct(a,b);
   else if(a.startsWith('bd'))await bodyAct(a,b);
+  else if(a==='wizgo')await wizGo(b);
+  else if(a==='wizskip'){try{localStorage.setItem('smart_wiz','1')}catch(e){}render()}
+  else if(a==='bkgo'){const e=document.querySelector('#bk');if(e)e.click()}
+  else if(a==='lsgo')setMode(b.dataset.m);
+  else if(a==='hub'){const e=document.querySelector('#'+b.dataset.t);if(e)e.click()}
   else if(a.startsWith('tr'))await tourAct(a,b);
   else if(a.startsWith('mn'))await menuAct(a,b);
   else if(a.startsWith('ex'))await expAct(a,b);
@@ -350,21 +350,13 @@ $('#list').onclick=async ev=>{
   else if(a.startsWith('tk'))await taskAct(a,b);
   else if(a.startsWith('it'))await itemAct(a,b,g);
   else if(a==='delrec')await delRec(b,g);
-  else if(a==='wkai')await wkAI(b);
   else if(a==='sadd'||a==='sclr'||a==='stog')await subAct(a,b,g);
   else if(a==='ci'){
     const v=parseFloat(c.querySelector('[data-v]').value),d=c.querySelector('[data-d]').value||today();
     if(isNaN(v))return;
     if(g.src&&isAdd(g))await applyAdd(g,d,v);else await store.save({...g,entries:isAdd(g)?addAt(g,d,v):(g.entries||[]).filter(x=>x.d!==d).concat({d,v})});
   }else if(a==='del'){
-    if(pendingDel===g.id){pendingDel=null;await store.del(g.id)}else{pendingDel=g.id;render()}
-  }else if(a==='ai'&&sample){
-    b.disabled=true;b.textContent='Думаю…';
-    try{
-      const r=await sample(`Ты коуч по целям. Дай 3–4 коротких практичных совета по-русски (без вступлений) по этой SMART-цели. Данные: ${JSON.stringify({название:g.title,категория:CATS[g.cat],единица:g.unit,старт:g.start,цель:g.target,сейчас:cur(g),срок:g.deadline,сегодня:today(),отметки:entries(g),конкретно:g.specific,достижимо:g.achievable,зачем:g.relevant,статус:status(g).t,подкатегории:subSummary(g)})}`,{cache:false});
-      aiText[g.id]=r.text;
-    }catch(e){aiText[g.id]='Не удалось получить совет. Попробуйте позже.'}
-    render();
+    if(pendingDel===g.id){pendingDel=null;const gc=g;await store.del(g.id);offerUndo('Цель удалена',()=>store.save(gc))}else{pendingDel=g.id;render()}
   }
 };
 $('#xl').onclick=async()=>{
@@ -476,22 +468,14 @@ function weekHTML(){
     const sl=subs.map(s=>`<div class='tag'>${esc(s.name)}: ${s.kind==='chk'?`${s.done}${s.norm?' из '+fmt(s.norm):''}`:(s.avg===null?'нет данных':`в среднем ${fmt(s.avg)} ${esc(s.unit||'')}${s.norm?` (норма ${s.mode==='max'?'≤':'≥'} ${fmt(s.norm)})`:''}, дней: ${s.days}`)}</div>`).join('');
     return `<div class='row2'><div><b>${esc(g.title)}</b>${sl}</div><div style='text-align:right'><div class='st ${st.k}'>${st.t}</div>${dl}</div></div>`;
   }).join('');
-  return `<div class='card wk'><div class='bd'><b>Итоги недели · ${dm(wk[0])}–${dm(wk[6])}</b>${sample?`<button class='p' data-act='wkai'>Разбор от Claude</button>`:''}</div>${rows}${wkText?`<div class='ai'>${esc(wkText)}</div>`:''}</div>`;
-}
-async function wkAI(b){
-  b.disabled=true;b.textContent='Думаю…';
-  try{
-    const r=await sample(`Ты коуч по целям. Сделай короткий разбор недели по-русски: что получилось, что просело и 3 конкретных шага на следующую неделю. Без вступлений. Данные: ${JSON.stringify({сегодня:iso(new Date()),цели:weekData().map(x=>({название:x.g.title,единица:x.g.unit,старт:x.g.start,сейчас:cur(x.g),цель:x.g.target,срок:x.g.deadline,изменение_за_неделю:x.delta,статус:x.st.t,подкатегории:x.subs}))})}`,{cache:false});
-    wkText=r.text;
-  }catch(e){wkText='Не удалось получить разбор. Попробуйте позже.'}
-  render();
+  return `<div class='card wk'><div class='bd'><b>Итоги недели · ${dm(wk[0])}–${dm(wk[6])}</b></div>${rows}</div>`;
 }
 let mode='all';
 $('#tdb').onclick=()=>{mode=mode==='today'?'all':'today';render()};
 $('#arb').onclick=()=>{mode=mode==='arch'?'all':'arch';render()};
 function forecast(g){
   const E=entries(g);if(E.length<3)return null;
-  const d0=new Date(g.created.slice(0,10)).getTime(),P=[[0,g.start],...E.map(p=>[(new Date(p.d)-d0)/864e5,p.v])],n=P.length;
+  const d0=new Date(cday(g)).getTime(),P=[[0,g.start],...E.map(p=>[(new Date(p.d)-d0)/864e5,p.v])],n=P.length;
   const sx=P.reduce((a,p)=>a+p[0],0),sy=P.reduce((a,p)=>a+p[1],0),sxx=P.reduce((a,p)=>a+p[0]*p[0],0),sxy=P.reduce((a,p)=>a+p[0]*p[1],0),den=n*sxx-sx*sx;
   if(!den||P[n-1][0]<3)return null;
   const k=(n*sxy-sx*sy)/den,b=(sy-k*sx)/n;
@@ -531,30 +515,7 @@ function todayHTML(){
     return `<div class='sub' data-s='${esc(s.id)}'><div class='bd'><b style="font:600 15px Onest,sans-serif">${esc(s.name)}</b><span class='tag'>${chk?(t?'сегодня отмечено ✓':'сегодня не отмечено'+(plannedDates(s).includes(nd)?' · по плану сегодня':'')):`сегодня: ${fmt(t)} ${esc(s.unit||'')}${s.norm?` (${s.kind==='max'?'≤':'≥'} ${fmt(s.norm)})`:''}`}</span></div><div class='ci'><input type='hidden' data-sd value='${nd}'>${chk?`<button class='p' data-act='stog'>${t?'Снять отметку':'Отметить сегодня'}</button>${!t&&plannedDates(s).includes(nd)?`<button class='l' data-act='schmove' data-g='${esc(g.id)}' data-s='${esc(s.id)}'>Перенести на завтра</button>`:''}`:`<input type='number' step='any' data-sv placeholder='+ ${esc(s.unit||'значение')}'><button class='p' data-act='sadd'>Добавить</button><button class='l' data-act='sclr'>Сбросить</button>`}</div></div>`}).join('')}${g.mode==='items'?`<div class='tag' style='margin-top:8px'>Пункты цели отмечайте на вкладке «Цели»</div>`:`<div class='ci'><input type='number' step='any' placeholder='${isAdd(g)?'Добавить, '+esc(g.unit):'Текущее значение'}' data-v><input type='date' value='${today()}' data-d><button class='p' data-act='ci'>${isAdd(g)?'Добавить':'Отметить'}</button></div>`}</div>`).join('');
   return `<div class='sec'>Сегодня · ${new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}</div>${rows}`;
 }
-$('#qkb').onclick=async()=>{
-  const t=$('#qk').value.trim(),m=$('#qkm');if(!t||!sample)return;
-  $('#qkb').disabled=true;m.textContent='Разбираю…';
-  try{
-    const ctx=goals.filter(g=>!g.archived).map(g=>({id:g.id,название:g.title,единица:g.unit,подкатегории:(g.subs||[]).map(s=>({id:s.id,название:s.name,тип:s.kind==='chk'?'отметка':'число',единица:s.unit}))}));
-    const r=await sample(`Разбери запись пользователя и верни ТОЛЬКО JSON без пояснений вида {"items":[{"goal":"id","sub":"id или null","value":число,"date":"YYYY-MM-DD"}]}. Если sub=null, это значение основного показателя цели. Для подкатегории-отметки value=1. Дата по умолчанию сегодня (${iso(new Date())}); «вчера» значит вчерашняя дата. Цели: ${JSON.stringify(ctx)}. Запись: «${t}»`,{cache:false});
-    const j=JSON.parse(r.text.replace(/```json|```/g,'').trim()),done=[],cache={};
-    for(const it of j.items||[]){
-      const g=cache[it.goal]||goals.find(x=>x.id===it.goal),v=Number(it.value);if(!g||isNaN(v))continue;
-      const d=/^\d{4}-\d\d-\d\d$/.test(it.date)?it.date:iso(new Date());let ng;
-      if(it.sub){
-        const s=(g.subs||[]).find(x=>x.id===it.sub);if(!s)continue;
-        const L=(g.logs||[]).slice();
-        if(s.kind==='chk'){if(L.some(x=>x.s===s.id&&x.d===d))continue;L.push({s:s.id,d,v:1})}else L.push({s:s.id,d,v});
-        ng={...g,logs:L};done.push(`${s.name}: ${s.kind==='chk'?'отмечено':fmt(v)+' '+(s.unit||'')}`);
-      }else{ng={...g,entries:(g.entries||[]).filter(x=>x.d!==d).concat({d,v})};done.push(`${g.title}: ${fmt(v)} ${g.unit}`)}
-      cache[ng.id]=ng;await store.save(ng);
-    }
-    m.textContent=done.length?'Записано: '+done.join('; '):'Не нашёл, что записать. Уточните фразу.';
-    if(done.length)$('#qk').value='';
-  }catch(e){m.textContent='Не удалось разобрать запись. Попробуйте переформулировать.'}
-  $('#qkb').disabled=false;
-};
-function setMode(m){mode=m;try{history.replaceState(null,'','#'+m)}catch(e){}render();window.scrollTo(0,0)}
+function setMode(m){mode=m;if(['shop','plan','rem'].includes(m))lastLs=m;try{history.replaceState(null,'','#'+m)}catch(e){}render();window.scrollTo(0,0)}
 $('#allb').onclick=()=>setMode('all');
 $('#tdb').onclick=()=>setMode('today');
 $('#wkb').onclick=()=>setMode('week');
@@ -571,7 +532,8 @@ function tipsHTML(g){
 function msMarks(g,X,Y,t0,t1){
   return [.25,.5,.75].map(q=>{const v=g.start+(g.target-g.start)*q,t=t0+(t1-t0)*q;return `<circle cx='${X(t)}' cy='${Y(v)}' r='3' fill='var(--card)' stroke='var(--mut)' stroke-width='1.2'><title>Веха ${q*100}%: ${fmt(v)} ${esc(g.unit)} к ${new Date(t).toLocaleDateString('ru-RU')}</title></circle>`}).join('');
 }
-async function delRec(b,g){
+async function delRec(b,g){await delRec0(b,g);offerUndo('Запись удалена',()=>store.save(g))}
+async function delRec0(b,g){
   const i=+b.dataset.i;
   if(b.dataset.k==='e'&&isAdd(g)){
     const e=(g.entries||[])[i],S=entries(g),k=S.indexOf(e),prev=k>0?S[k-1].v:g.start,delta=e.v-prev;
@@ -589,7 +551,7 @@ function logHTML(){
 }
 $('#bk').onclick=async()=>{
   $('#mn').hidden=true;
-  try{const dl=await claude.use('downloads');if(!dl)throw 0;await dl.save({filename:'smart-goals-backup.json',data:JSON.stringify([...goals,...tasks,...lists])})}
+  try{const dl=await claude.use('downloads');if(!dl)throw 0;await dl.save({filename:'smart-goals-backup.json',data:JSON.stringify([...goals,...tasks,...lists])});try{localStorage.setItem('smart_backup_at',iso(new Date()))}catch(e){}}
   catch(e){if(!(e&&e.code==='declined'))setSync('Резервная копия недоступна')}
 };
 $('#rs').onclick=()=>$('#rsf').click();
@@ -625,7 +587,7 @@ function runOp(o){
   return o.op==='up'?sb.from('goals').upsert({user_id:uid,id:o.id,data:o.row,updated_at:new Date().toISOString()},{onConflict:'user_id,id'}):sb.from('goals').delete().eq('id',o.id);
 }
 async function doOp(o){
-  cacheAll();
+  lastOp=Date.now();cacheAll();
   if(!navigator.onLine||!sb||offlineMode){enqueue(o);setSync('Офлайн: сохранено на устройстве');return}
   let r;try{r=await runOp(o)}catch(e){r={error:e}}
   if(r.error){if(isNet(r.error)){enqueue(o);setSync('Нет связи: отправлю позже')}else setSync('Ошибка сохранения: '+r.error.message)}
@@ -640,24 +602,64 @@ async function flushQ(){
   setQ(rest);
 }
 function loadCache(msg){
-  try{const c=JSON.parse(localStorage.getItem('smart_cache_'+uid)||'null');if(c){goals=c.goals||[];tasks=c.tasks||[];lists=c.lists||[]}}catch(e){}
+  try{const c=JSON.parse(localStorage.getItem('smart_cache_'+uid)||'null');if(c){goals=c.goals||[];tasks=c.tasks||[];lists=c.lists||[];logIdx={};goals.forEach(g=>{logIdx[g.id]={};(g.logs||[]).forEach(l=>{if(l.id)logIdx[g.id][l.id]=1})})}}catch(e){}
   setSync(msg);render();
 }
 async function loadAll(){
   try{await flushQ()}catch(e){}
   if(!navigator.onLine){loadCache('Офлайн: данные с устройства');return}
   if(getQ().length){loadCache('Есть неотправленные изменения, повторю позже');return}
-  let res;try{res=await sb.from('goals').select('data')}catch(e){res={error:e}}
+  let res;try{res=await fetchAll()}catch(e){res={error:e}}
   if(res.error){loadCache(isNet(res.error)?'Нет связи: данные с устройства':'Ошибка загрузки: '+res.error.message);return}
-  const all=(res.data||[]).map(r=>r.data);
-  goals=all.filter(x=>x&&x.type!=='task'&&x.type!=='list');tasks=all.filter(x=>x&&x.type==='task');lists=all.filter(x=>x&&x.type==='list');
+  const all=(res.data||[]).map(r=>r.data).filter(Boolean);
+  const rowsLogs=all.filter(x=>x.type==='log'),base=all.filter(x=>x.type!=='log');
+  goals=base.filter(x=>x.type!=='task'&&x.type!=='list');tasks=base.filter(x=>x.type==='task');lists=base.filter(x=>x.type==='list');
+  attachLogs(rowsLogs);
   cacheAll();setSync('Синхронизировано ✓');render();
-  goals.slice().forEach(g=>{const r=rollover(g);if(r)store.save(r)});
+  goals.slice().forEach(g=>{
+    if(g._legacy){delete g._legacy;store.save(g);return}
+    const r=rollover(g);if(r)store.save(r);
+  });
+}
+async function fetchAll(){
+  const out=[];
+  for(let from=0;;from+=1000){
+    const r=await sb.from('goals').select('id,data').order('id').range(from,from+999);
+    if(r.error)return{error:r.error};
+    out.push(...(r.data||[]));
+    if(!r.data||r.data.length<1000)break;
+  }
+  return{data:out};
+}
+let logIdx={},lastOp=0;
+function attachLogs(rowsLogs){
+  logIdx={};const by={};
+  rowsLogs.forEach(l=>{(by[l.g]=by[l.g]||[]).push(l)});
+  goals=goals.map(g=>{
+    const emb=(g.logs||[]).map((l,i)=>l.id?l:{...l,id:'lg_'+g.id+'_'+i}),m=new Map();
+    emb.forEach(l=>m.set(l.id,l));
+    const rows=by[g.id]||[];rows.forEach(l=>m.set(l.id,l));
+    logIdx[g.id]={};rows.forEach(l=>{logIdx[g.id][l.id]=1});
+    const o={...g,logs:[...m.values()]};if(emb.length)o._legacy=true;
+    return o;
+  });
+}
+async function syncGoal(g){
+  const saved=logIdx[g.id]||(logIdx[g.id]={}),cur={};
+  g.logs=(g.logs||[]).map(l=>l.id?l:{...l,id:'lg_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)});
+  for(const l of g.logs){cur[l.id]=1;if(!saved[l.id]){saved[l.id]=1;await syncRow({...l,type:'log',g:g.id})}}
+  for(const id of Object.keys(saved)){if(!cur[id]){delete saved[id];await syncDel(id)}}
+  const {logs,_legacy,...rest}=g;
+  await syncRow(rest);
+}
+async function syncGoalDel(id){
+  for(const lid of Object.keys(logIdx[id]||{}))await syncDel(lid);
+  delete logIdx[id];await syncDel(id);
 }
 function makeStore(){
   store={
-    save:async g=>{const i=goals.findIndex(x=>x.id===g.id);i<0?goals.push(g):goals[i]=g;render();await syncRow(g)},
-    del:async id=>{goals=goals.filter(x=>x.id!==id);render();await syncDel(id)}
+    save:async g=>{const i=goals.findIndex(x=>x.id===g.id);i<0?goals.push(g):goals[i]=g;render();await syncGoal(g)},
+    del:async id=>{goals=goals.filter(x=>x.id!==id);render();await syncGoalDel(id)}
   };
 }
 let offlineMode=false;
@@ -670,7 +672,7 @@ async function startSynced(session){
   offlineMode=false;uid=session.user.id;try{localStorage.setItem('smart_last_uid',uid)}catch(e){}
   $('#auth').hidden=true;$('#list').hidden=false;makeStore();
   await loadAll();loadTour(true);
-  if(!window._chan){window._chan=1;sb.channel('goals-'+uid).on('postgres_changes',{event:'*',schema:'public',table:'goals'},()=>{if(store&&!offlineMode)loadAll()}).subscribe();document.addEventListener('visibilitychange',()=>{if(!document.hidden&&store&&!offlineMode)loadAll()})}
+  if(!window._chan){window._chan=1;sb.channel('goals-'+uid).on('postgres_changes',{event:'*',schema:'public',table:'goals'},()=>{if(!store||offlineMode||Date.now()-lastOp<3000)return;clearTimeout(window._rt);window._rt=setTimeout(()=>{if(store&&!offlineMode)loadAll()},1500)}).subscribe();document.addEventListener('visibilitychange',()=>{if(!document.hidden&&store&&!offlineMode)loadAll()})}
 }
 async function onOnline(){
   if(!sb)return;
@@ -783,12 +785,14 @@ async function itemAct(a,b,g){
   }
   else return;
   await store.save({...g,items:it,reads});
+  if(a==='itdel')offerUndo('Пункт удалён',()=>store.save(g));
 }
 async function saveT(t){
   const i=tasks.findIndex(x=>x.id===t.id);i<0?tasks.push(t):tasks[i]=t;render();
   if(sb&&uid)await syncRow(t);else{try{localStorage.setItem('smart_tasks',JSON.stringify(tasks))}catch(e){}}
 }
-async function delT(id){
+async function delT(id,quiet){const t=tasks.find(x=>x.id===id);await delT0(id);if(t&&!quiet)offerUndo('Задача удалена',()=>saveT(t))}
+async function delT0(id){
   tasks=tasks.filter(x=>x.id!==id);render();
   if(sb&&uid)await syncDel(id);else{try{localStorage.setItem('smart_tasks',JSON.stringify(tasks))}catch(e){}}
 }
@@ -865,7 +869,8 @@ async function remoteDel(id,key,arr){
   if(sb&&uid)await syncDel(id);else{try{localStorage.setItem(key,JSON.stringify(arr))}catch(e){}}
 }
 async function saveL(l){const i=lists.findIndex(x=>x.id===l.id);i<0?lists.push(l):lists[i]=l;render();await remoteSave(l,'smart_lists',lists)}
-async function delL(id){lists=lists.filter(x=>x.id!==id);render();await remoteDel(id,'smart_lists',lists)}
+async function delL(id,quiet){const l=lists.find(x=>x.id===id);await delL0(id);if(l&&!quiet)offerUndo('Запись удалена',()=>saveL(l))}
+async function delL0(id){lists=lists.filter(x=>x.id!==id);render();await remoteDel(id,'smart_lists',lists)}
 async function taskAct(a,b){
   const c=b.closest('.card'),id=b.dataset.t,q=s=>{const e=c&&c.querySelector(s);return e?e.value:''};
   if(a==='tkadd'){
@@ -890,8 +895,8 @@ async function taskAct(a,b){
   }
   else if(a==='tkbudget'){const name=c.dataset.list,m=metaOf('shop',name)||{id:'list_shop_'+name.replace(/[^0-9A-Za-zА-Яа-яЁё]/g,'_'),type:'list',name,kind:'shop'};await saveL({...m,budget:parseFloat(q('[data-bg]'))||0})}
   else if(a==='tkdel')await delT(id);
-  else if(a==='tkclr'){for(const t of tasks.filter(x=>x.list===c.dataset.list&&kindOf(x)===c.dataset.kind&&x.done))await delT(t.id)}
-  else if(a==='tkclrplan'){for(const t of tasks.filter(x=>kindOf(x)==='plan'&&x.done))await delT(t.id)}
+  else if(a==='tkclr'){for(const t of tasks.filter(x=>x.list===c.dataset.list&&kindOf(x)===c.dataset.kind&&x.done))await delT(t.id,true)}
+  else if(a==='tkclrplan'){for(const t of tasks.filter(x=>kindOf(x)==='plan'&&x.done))await delT(t.id,true)}
   else if(a==='tkreset'){for(const t of tasks.filter(x=>x.list===c.dataset.list&&kindOf(x)==='shop'&&x.done))await saveT({...t,done:false})}
   else if(a==='tkcopy'){
     const txt=c.dataset.list+':\n'+tasks.filter(x=>x.list===c.dataset.list&&kindOf(x)==='shop'&&!x.done).map(x=>'• '+x.t).join('\n');
@@ -901,7 +906,7 @@ async function taskAct(a,b){
   else if(a==='tkdellist'){
     if(!confirm('Удалить список и все его задачи?'))return;
     const l=lists.find(x=>x.id===b.dataset.id);
-    if(l){for(const t of tasks.filter(x=>x.list===l.name&&kindOf(x)===l.kind))await delT(t.id);await delL(l.id)}
+    if(l){for(const t of tasks.filter(x=>x.list===l.name&&kindOf(x)===l.kind))await delT(t.id,true);await delL(l.id,true)}
   }
   else if(a==='tknotif')await enableNotif();
   else if(a==='tkdaily'){setTS({daily:q('[data-dtime]')});setSync('Ежедневное напоминание сохранено');render()}
@@ -935,7 +940,7 @@ $('#list').addEventListener('keydown',e=>{
   const b=(e.target.closest('details')||e.target.closest('.card')).querySelector("[data-act='tkadd'],[data-act='itadd'],[data-act='tklist'],[data-act='qkgen'],[data-act='tksubadd']");
   if(b){e.preventDefault();b.click()}
 });
-{const h=location.hash.slice(1);if(['today','week','arch','shop','plan','rem','food','sum','body','tour','menu','exp','ach'].includes(h))mode=h}
+{const h=location.hash.slice(1);if(['today','week','arch','shop','plan','rem','food','sum','body','tour','menu','exp','ach','more'].includes(h))mode=h}
 const isAdd=g=>g.inc?g.inc==='add':g.cat==='money';
 function addAt(g,d,v){
   const S=entries(g),prev=S.filter(x=>x.d<=d).pop(),base=prev?prev.v:g.start;
@@ -1329,7 +1334,7 @@ async function foodAct(a,b){
     await store.save({...g,logs:[...(g.logs||[]),{s:sid,d,v:total,n:note,...macroTotals()}]});
     foodState.items=null;foodState.text='';setSync('✓ Добавлено '+fmt(total)+' ккал');render();
   }
-  else if(a==='fddel'){const g=goals.find(x=>x.id===b.dataset.g);if(g)await store.save({...g,logs:(g.logs||[]).filter((_,j)=>j!==i)})}
+  else if(a==='fddel'){const g=goals.find(x=>x.id===b.dataset.g);if(g){await store.save({...g,logs:(g.logs||[]).filter((_,j)=>j!==i)});offerUndo('Запись удалена',()=>store.save(g))}}
   else if(a==='fdaddfood'){const n=q('[data-nn]').trim(),k=parseFloat(q('[data-nk]'));if(!n||isNaN(k))return;await saveL({id:'food_'+Date.now().toString(36),type:'list',kind:'food',name:n,k,p:parseFloat(q('[data-np]'))||0,...(()=>{const b=parseFloat(q('[data-nb]')),f=parseFloat(q('[data-nf]')),c=parseFloat(q('[data-nc]'));return isNaN(b)&&isNaN(f)&&isNaN(c)?{}:{mb:b||0,mf:f||0,mc:c||0}})()})}
   else if(a==='fddelfood')await delL(b.dataset.id);
   else if(a==='fdvoice')voiceInput(b);
@@ -1367,7 +1372,7 @@ $('#list').addEventListener('input',e=>{
     const tot=document.querySelector('#fdtot');if(tot)tot.innerHTML=totalHTML();
   }
 });
-const isShort=g=>g.repeat==='day'||(new Date(g.deadline)-new Date(g.created.slice(0,10)))/864e5<=1;
+const isShort=g=>g.repeat==='day'||(new Date(g.deadline)-new Date(cday(g)))/864e5<=1;
 function shortChart(g){
   const p=pct(g),h=(g.history||[]).slice(-14),w=h.length*22+8;
   const bars=h.map((x,i)=>{const v=Math.min(100,x.p),bh=Math.max(2,v*.46);return `<rect x='${i*22+4}' y='${50-bh}' width='16' height='${bh}' rx='4' fill='${x.p>=100?'var(--ok)':'var(--ac)'}' opacity='${x.p>=100?1:.55}'><title>${x.to}: ${x.p}%</title></rect>`}).join('');
@@ -2340,6 +2345,80 @@ $('#pinb').onclick=async()=>{
   try{localStorage.setItem(PINK,JSON.stringify({salt,hash,len:n.trim().length}))}catch(e){}setSync('✓ PIN установлен');
 };
 if(getPin())showLock();
+const cday=g=>iso(new Date(g.created));
+// ===== v9: навигация =====
+let lastLs='shop';
+$('#lsb').onclick=()=>setMode(lastLs);
+$('#morb').onclick=()=>setMode('more');
+function listsNav(){
+  return `<div class='card nop' style='padding:8px 12px'><div class='ci' style='margin:0'>${[['shop','🛒 Покупки'],['plan','📋 План'],['rem','🔔 Напоминания']].map(([m,n])=>`<button class='${mode===m?'p':'l'}' data-act='lsgo' data-m='${m}'>${n}</button>`).join('')}</div></div>`;
+}
+function moreHTML(){
+  const sec=(t,items)=>`<div class='card'><div class='bd'><b>${t}</b></div><div class='ci' style='margin-top:8px'>${items.map(([id,n])=>`<button data-act='hub' data-t='${id}'>${n}</button>`).join('')}</div></div>`;
+  return `<div class='sec'>Ещё</div>`
+    +sec('Обзор',[['wkb','📅 Итоги недели'],['sm','📊 Итоги месяца'],['achm','🏅 Достижения'],['arb','🗄 Архив целей']])
+    +sec('Деньги и питание',[['exm','💳 Расходы'],['mnm','🍽 Меню на неделю'],['bdm','📏 Замеры тела']])
+    +sec('Соревнования',[['trb','🏆 Турниры']])
+    +sec('Данные',[['xl','⬇ Excel'],['bk','💾 Резервная копия'],['rs','♻️ Восстановить'],['lg','🧾 Журнал записей']])
+    +sec('Настройки',[['pinb','🔒 PIN-код'],['inst','📲 Установить приложение'],['offchk','🔧 Проверить офлайн-режим'],['lo','🚪 Выйти']]);
+}
+// ===== v9: первый запуск, отмена удаления, копия =====
+let undoT=null;
+function offerUndo(msg,fn){
+  const el=document.querySelector('#undo');if(!el)return;
+  el.innerHTML=`<span>${esc(msg)}</span><button class='p' data-undo='1'>Вернуть</button>`;el.hidden=false;
+  window._undo=fn;clearTimeout(undoT);undoT=setTimeout(()=>{el.hidden=true;window._undo=null},7000);
+}
+$('#undo').addEventListener('click',e=>{
+  if(!e.target.closest||!e.target.closest('[data-undo]'))return;
+  const f=window._undo;window._undo=null;$('#undo').hidden=true;if(f)f();
+});
+function backupBanner(){
+  try{
+    if(!goals.length)return'';
+    let first=localStorage.getItem('smart_first');if(!first){first=iso(new Date());localStorage.setItem('smart_first',first)}
+    const last=localStorage.getItem('smart_backup_at')||first;
+    if(Math.floor((Date.now()-new Date(last))/864e5)<30)return'';
+    return `<div class='card nop'><div class='bd'><b>💾 Пора сохранить резервную копию</b></div><div class='tag' style='margin:6px 0'>Прошло больше месяца с последней копии. Файл поможет восстановить данные в любой момент.</div><div class='ci'><button class='p' data-act='bkgo'>Сохранить копию</button></div></div>`;
+  }catch(e){return''}
+}
+const wizSkipped=()=>{try{return !!localStorage.getItem('smart_wiz')}catch(e){return false}};
+function wizHTML(){
+  const ck=(id,t,body,on)=>`<div class='row2' style='display:block;padding:12px 0'><label style='display:flex;gap:10px;align-items:center;margin:0;color:var(--tx);font-weight:600'><input type='checkbox' data-w='${id}' ${on?'checked':''} style='width:20px;height:20px;margin:0'>${t}</label><div class='ci' style='margin:8px 0 0 30px'>${body}</div></div>`;
+  return `<div class='card'><div class='bd'><b style="font:600 22px Literata,Georgia,serif">Добро пожаловать!</b></div><div class='tag' style='margin:6px 0'>Отметьте, что хотите отслеживать. Всё можно изменить позже.</div>`
+   +ck('weight','⚖️ Снизить вес',`<input type='number' step='any' data-ww1 placeholder='Вес сейчас, кг' style='width:130px'><input type='number' step='any' data-ww2 placeholder='Цель, кг' style='width:110px'><input type='number' data-wwm value='3' style='width:70px'><span class='tag'>месяцев</span>`,false)
+   +ck('water','💧 Пить воду (2 л в день)',`<span class='tag'>Кнопки «Стакан» и «+500 мл» появятся в карточке</span>`,true)
+   +ck('money','💰 Накопить на цель',`<input data-wmt placeholder='На что копим' style='flex:1;width:auto;min-width:130px'><input type='number' step='any' data-wm1 placeholder='Сумма, ₽' style='width:120px'><input type='number' data-wmm value='6' style='width:70px'><span class='tag'>месяцев</span>`,false)
+   +ck('books','📖 Читать книги',`<input type='number' data-wb value='12' style='width:80px'><span class='tag'>книг в год</span>`,true)
+   +ck('habit','💪 Тренировки',`<input type='number' data-wh value='3' style='width:80px'><span class='tag'>раза в неделю</span>`,true)
+   +`<div class='ci'><button class='p' data-act='wizgo'>Создать выбранное</button><button class='l' data-act='wizskip'>Пропустить</button></div></div>`;
+}
+async function wizGo(b){
+  const c=b.closest('.card'),q=s=>{const e=c.querySelector(s);return e?e.value:''},on=id=>{const e=c.querySelector("[data-w='"+id+"']");return !!(e&&e.checked)};
+  const td=iso(new Date()),nowI=new Date().toISOString(),uid2=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const dl=m=>{const d=new Date();d.setMonth(d.getMonth()+(parseFloat(m)||3));return iso(d)};
+  const mkG=o=>({id:'g'+uid2(),cat:'other',start:0,created:nowI,entries:[],subs:[],logs:[],items:[],mode:'value',repeat:'',...o}),out=[];
+  let wg=null,wsub=null;
+  if(on('weight')){
+    const a=parseFloat(q('[data-ww1]')),t=parseFloat(q('[data-ww2]'));
+    if(isNaN(a)||isNaN(t)||a===t){setSync('Для цели по весу укажите вес сейчас и цель');return}
+    const T=TPL2.weight;let subs=T.subs.map((s,i)=>({...s,id:'s'+uid2()+i}));
+    if(on('habit'))subs=subs.map(s=>s.kind==='chk'?{...s,norm:parseFloat(q('[data-wh]'))||3}:s);else subs=subs.filter(s=>s.kind!=='chk');
+    wsub=subs.find(s=>/^мл$/i.test(s.unit||''));
+    wg=mkG({title:'Снизить вес',cat:'weight',unit:'кг',start:a,target:t,deadline:dl(q('[data-wwm]')),specific:T.s,subs,entries:[{d:td,v:a}]});out.push(wg);
+  }
+  if(on('water'))out.push(mkG({title:'Пить воду',cat:'other',unit:'мл',start:0,target:2000,deadline:td,repeat:'day',inc:'add',chips:[{l:'Стакан',v:250},{l:'',v:500}],specific:'Пить воду в течение дня, стакан 250 мл',...(wg&&wsub?{src:{g:wg.id,s:wsub.id}}:{})}));
+  if(on('money')){
+    const sum=parseFloat(q('[data-wm1]'));if(isNaN(sum)||sum<=0){setSync('Для накоплений укажите сумму');return}
+    out.push(mkG({title:q('[data-wmt]').trim()||'Накопления',cat:'money',unit:'₽',target:sum,deadline:dl(q('[data-wmm]')||6),inc:'add',chips:[{l:'',v:1000},{l:'',v:5000},{l:'',v:10000}],specific:'Откладывать фиксированную сумму в день дохода'}));
+  }
+  if(on('books'))out.push(mkG({title:'Прочитать книги',cat:'books',unit:'книг',target:parseFloat(q('[data-wb]'))||12,deadline:dl(12),mode:'items'}));
+  if(on('habit')&&!wg)out.push(mkG({title:'Тренировки',cat:'other',unit:'раз',target:parseFloat(q('[data-wh]'))||3,deadline:addDays(td,7),repeat:'week',inc:'add',chips:[{l:'Тренировка',v:1}],specific:'Тренироваться в заранее назначенные дни'}));
+  if(!out.length){setSync('Отметьте хотя бы один пункт');return}
+  try{localStorage.setItem('smart_wiz','1')}catch(e){}
+  for(const g of out)await store.save(g);
+  setSync('✓ Создано целей: '+out.length+(wg?'. Загляните в «Еда», чтобы рассчитать норму калорий':''));
+}
 async function init(){
   render();
   const last=(()=>{try{return localStorage.getItem('smart_last_uid')}catch(e){return null}})();
